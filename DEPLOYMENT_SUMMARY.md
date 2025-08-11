@@ -15,12 +15,7 @@ Your **Slip Platform** has been successfully configured for **root directory dep
       "src": "package.json",
       "use": "@vercel/next"
     }
-  ],
-  "functions": {
-    "app/api/**/*.ts": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
 ```
 

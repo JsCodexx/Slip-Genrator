@@ -6,7 +6,7 @@ When you deploy from the root directory, Vercel needs explicit configuration to 
 
 ## 🔧 **Configuration Files for Root Directory**
 
-### **1. vercel.json (Full Configuration)**
+### **1. vercel.json (Root Directory Configuration)**
 ```json
 {
   "version": 2,
@@ -15,19 +15,14 @@ When you deploy from the root directory, Vercel needs explicit configuration to 
       "src": "package.json",
       "use": "@vercel/next"
     }
-  ],
-  "functions": {
-    "app/api/**/*.ts": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
 ```
 
-**Why Full Configuration?**
+**Why This Configuration?**
 - Root directory deployment requires explicit build configuration
 - `builds` property tells Vercel to use Next.js builder
-- `functions` property configures API route timeouts
+- Vercel will automatically handle API route timeouts and function configuration
 - Environment variables will be set directly in Vercel dashboard
 
 ### **2. next.config.js (Optimized)**
