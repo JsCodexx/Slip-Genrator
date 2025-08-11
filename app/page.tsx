@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import Navigation from "@/components/Navigation";
+import { getProductPriceDisplay, convertCurrency, formatPrice } from "@/lib/currency";
 
 interface SlipFormat {
   id: string;
   name: string;
   description: string;
   template_html: string;
+  category?: string;
   logo_data?: string;
   logo_type?: string;
   store_name?: string;
@@ -27,6 +29,7 @@ interface Fruit {
   base_price: number;
   max_price: number;
   unit: string;
+  category: string;
 }
 
 interface GeneratedSlip {
@@ -46,6 +49,44 @@ interface SlipItem {
   total_price: number;
 }
 
+// Move generateRealisticQuantity function outside the component for stability
+const generateRealisticQuantity = (unit: string): number => {
+  switch (unit.toLowerCase()) {
+    case 'pieces':
+    case 'piece':
+    case 'pcs':
+    case 'pc':
+      return Math.floor(Math.random() * 20) + 1; // 1-20 pieces
+    
+    case 'kg':
+    case 'kgs':
+    case 'kilogram':
+    case 'kilograms':
+      return Math.floor(Math.random() * 7) + 1; // 1-7 kg
+    
+    case 'glass':
+    case 'glasses':
+    case 'bottle':
+    case 'bottles':
+    case 'can':
+    case 'cans':
+      return Math.floor(Math.random() * 20) + 1; // 1-20 glasses/bottles
+    
+    case 'dozen':
+    case 'dozens':
+      return Math.floor(Math.random() * 5) + 1; // 1-5 dozen
+    
+    case 'pack':
+    case 'packs':
+    case 'packet':
+    case 'packets':
+      return Math.floor(Math.random() * 10) + 1; // 1-10 packs
+    
+    default:
+      return Math.floor(Math.random() * 10) + 1; // Default 1-10
+  }
+};
+
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [slipFormats, setSlipFormats] = useState<SlipFormat[]>([]);
@@ -54,6 +95,7 @@ export default function Home() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [numberOfSlips, setNumberOfSlips] = useState<number>(1);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [fruitQuantities, setFruitQuantities] = useState<{
     [key: string]: number;
   }>({});
@@ -64,6 +106,15 @@ export default function Home() {
     "info"
   );
   const [showPreview, setShowPreview] = useState(false);
+  
+  // New state variables for item control
+  const [maxItemsToShow, setMaxItemsToShow] = useState<number>(8);
+  const [autoGenerateQuantities, setAutoGenerateQuantities] = useState<boolean>(true);
+  const [selectedItemsCount, setSelectedItemsCount] = useState<number>(0);
+  
+  // New state for date mode
+  const [dateMode, setDateMode] = useState<"range" | "exact">("range");
+  const [exactDate, setExactDate] = useState<string>("");
 
   useEffect(() => {
     const getUser = async () => {
@@ -73,7 +124,16 @@ export default function Home() {
       if (user) {
         setUser(user);
         loadSlipFormats();
-        loadFruits();
+        loadFruits("all"); // Load all categories initially
+        
+        // Set default date range: 15 days ago to today
+        const today = new Date();
+        const fifteenDaysAgo = new Date();
+        fifteenDaysAgo.setDate(today.getDate() - 15);
+        
+        setEndDate(today.toISOString().split('T')[0]);
+        setStartDate(fifteenDaysAgo.toISOString().split('T')[0]);
+        setExactDate(today.toISOString().split('T')[0]);
       } else {
         window.location.href = "/auth";
       }
@@ -86,7 +146,16 @@ export default function Home() {
       if (session?.user) {
         setUser(session.user);
         loadSlipFormats();
-        loadFruits();
+        loadFruits("all"); // Load all categories initially
+        
+        // Set default date range: 15 days ago to today
+        const today = new Date();
+        const fifteenDaysAgo = new Date();
+        fifteenDaysAgo.setDate(today.getDate() - 15);
+        
+        setEndDate(today.toISOString().split('T')[0]);
+        setStartDate(fifteenDaysAgo.toISOString().split('T')[0]);
+        setExactDate(today.toISOString().split('T')[0]);
       } else {
         setUser(null);
         window.location.href = "/auth";
@@ -101,13 +170,13 @@ export default function Home() {
 
   // Debug: Monitor fruits state changes
   useEffect(() => {
-    // Initialize fruitQuantities with 1 for all fruits when fruits change
+    // Initialize fruitQuantities with 0 for all fruits when fruits change
     if (fruits.length > 0) {
       const initialQuantities: { [key: string]: number } = {};
       fruits.forEach((fruit) => {
-        // Only set to 1 if not already set by user
+        // Only set to 0 if not already set by user
         if (fruitQuantities[fruit.id] === undefined) {
-          initialQuantities[fruit.id] = 1;
+          initialQuantities[fruit.id] = 0;
         } else {
           initialQuantities[fruit.id] = fruitQuantities[fruit.id];
         }
@@ -123,6 +192,39 @@ export default function Home() {
       }
     }
   }, [fruits]); // Removed fruitQuantities from dependency array to prevent infinite loops
+
+  // Track selected items count
+  useEffect(() => {
+    const selectedCount = Object.values(fruitQuantities).filter(qty => qty > 0).length;
+    setSelectedItemsCount(selectedCount);
+  }, [fruitQuantities]);
+
+  // Auto-generate quantities when autoGenerateQuantities is enabled
+  useEffect(() => {
+    if (autoGenerateQuantities && fruits.length > 0) {
+      console.log('🔄 Auto-generating quantities for', fruits.length, 'fruits');
+      const newQuantities: { [key: string]: number } = {};
+      
+      fruits.forEach((fruit) => {
+        // Only auto-generate if quantity is 0 or undefined
+        if (fruitQuantities[fruit.id] === 0 || fruitQuantities[fruit.id] === undefined) {
+          newQuantities[fruit.id] = generateRealisticQuantity(fruit.unit);
+          console.log(`🔄 Auto-generated quantity for ${fruit.name}: ${newQuantities[fruit.id]} ${fruit.unit}`);
+        } else {
+          // Preserve existing user-set quantities
+          newQuantities[fruit.id] = fruitQuantities[fruit.id];
+        }
+      });
+      
+      // Update the state with new quantities
+      setFruitQuantities(prev => ({
+        ...prev,
+        ...newQuantities
+      }));
+      
+      console.log('🔄 Updated fruitQuantities with auto-generated values:', newQuantities);
+    }
+  }, [autoGenerateQuantities, fruits]); // Depend on autoGenerateQuantities and fruits
 
   const loadSlipFormats = async () => {
     try {
@@ -143,29 +245,109 @@ export default function Home() {
     }
   };
 
-  const loadFruits = async () => {
+  const loadFruits = async (category?: string) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("fruits")
         .select("*")
-        .eq("is_active", true)
-        .order("name");
+        .eq("is_active", true);
+      
+      if (category && category !== "all") {
+        query = query.eq("category", category);
+      }
+      
+      const { data, error } = await query.order("name");
 
       if (error) throw error;
       setFruits(data || []);
 
-      // Don't initialize quantities automatically - let user set them
-      // This prevents overriding user input with default values
+      // Initialize quantities to 0 for new fruits when category changes
+      if (data && data.length > 0) {
+        const newQuantities: { [key: string]: number } = {};
+        data.forEach((fruit) => {
+          // If we're changing categories, reset all quantities to 0
+          // If we're keeping the same category, preserve existing quantities
+          if (selectedCategory !== category || fruitQuantities[fruit.id] === undefined) {
+            newQuantities[fruit.id] = 0;
+          } else {
+            newQuantities[fruit.id] = fruitQuantities[fruit.id];
+          }
+        });
+        console.log(`🔄 Loaded ${data.length} fruits for category "${category}", initialized quantities:`, newQuantities);
+        setFruitQuantities(newQuantities);
+      }
     } catch (error) {
+      console.error('collab: Error loading fruits:', error);
     }
   };
 
+  const handleCategoryChange = (category: string) => {
+    console.log(`🔄 Category changed from ${selectedCategory} to ${category}`);
+    setSelectedCategory(category);
+    // Reset quantities when category changes
+    setFruitQuantities({});
+    console.log('🔄 Reset fruitQuantities to empty object');
+    loadFruits(category);
+  };
+
+  // Function to handle date mode changes
+  const handleDateModeChange = (mode: "range" | "exact") => {
+    setDateMode(mode);
+    // Reset quantities when changing date mode to ensure fresh start
+    setFruitQuantities({});
+    setMessage(`Switched to ${mode === "range" ? "Date Range" : "Exact Date"} mode`);
+    setMessageType("info");
+    setTimeout(() => setMessage(""), 3000);
+  };
+
   const resetQuantities = () => {
-    const resetQuantities: { [key: string]: number } = {};
+    if (autoGenerateQuantities) {
+      // If auto-generation is enabled, generate new realistic quantities
+      const newQuantities: { [key: string]: number } = {};
+      fruits.forEach((fruit) => {
+        newQuantities[fruit.id] = generateRealisticQuantity(fruit.unit);
+      });
+      setFruitQuantities(newQuantities);
+      setMessage("Generated new realistic quantities for all items");
+      setMessageType("success");
+    } else {
+      // If auto-generation is disabled, reset to 0
+      const resetQuantities: { [key: string]: number } = {};
+      fruits.forEach((fruit) => {
+        resetQuantities[fruit.id] = 0;
+      });
+      setFruitQuantities(resetQuantities);
+      setMessage("Reset all quantities to 0");
+      setMessageType("info");
+    }
+    setTimeout(() => setMessage(""), 3000);
+  };
+
+  // Function to manually generate sample quantities
+  const generateSampleQuantities = () => {
+    const newQuantities: { [key: string]: number } = {};
     fruits.forEach((fruit) => {
-      resetQuantities[fruit.id] = 1;
+      newQuantities[fruit.id] = generateRealisticQuantity(fruit.unit);
     });
-    setFruitQuantities(resetQuantities);
+    setFruitQuantities(newQuantities);
+    setMessage("Generated sample quantities for all items");
+    setMessageType("success");
+    setTimeout(() => setMessage(""), 3000);
+  };
+
+  // Function to reset dates to default range (15 days ago to today)
+  const resetDatesToDefault = () => {
+    const today = new Date();
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(today.getDate() - 15);
+    
+    setEndDate(today.toISOString().split('T')[0]);
+    setStartDate(fifteenDaysAgo.toISOString().split('T')[0]);
+    setExactDate(today.toISOString().split('T')[0]);
+    
+    setMessage("Dates reset to default range (15 days ago to today)");
+    setMessageType("info");
+    setTimeout(() => setMessage(""), 3000);
   };
 
   const generateRandomPrice = (basePrice: number, maxPrice: number): number => {
@@ -176,41 +358,81 @@ export default function Home() {
   };
 
   const generateSlips = async () => {
-    if (!selectedFormat || !startDate || !endDate || numberOfSlips < 1) {
-      setMessage("Please fill in all required fields");
+    if (!selectedFormat || !selectedCategory) {
+      setMessage("Please select a slip format and product category");
       setMessageType("error");
       return;
     }
 
-    // Debug: Log the current fruitQuantities state
+    // Validate date based on mode
+    if (dateMode === "range" && (!startDate || !endDate)) {
+      setMessage("Please select start and end dates for date range mode");
+      setMessageType("error");
+      return;
+    }
 
+    if (dateMode === "exact" && !exactDate) {
+      setMessage("Please select an exact date");
+      setMessageType("error");
+      return;
+    }
+
+    if (numberOfSlips < 1) {
+      setMessage("Please enter a valid number of slips");
+      setMessageType("error");
+      return;
+    }
+
+    // Debug: Log the current state
+    console.log('🔍 Debug generateSlips:', {
+      fruits: fruits.length,
+      fruitQuantities,
+      selectedFruits: fruits.filter(fruit => fruitQuantities[fruit.id] > 0).length,
+      maxItemsToShow,
+      autoGenerateQuantities
+    });
+
+    // Only get fruits where user has selected quantity > 0
     const selectedFruits = fruits.filter(
-      (fruit) => fruitQuantities[fruit.id] >= 1
+      (fruit) => fruitQuantities[fruit.id] > 0
     );
     
-    // Debug: Log selected fruits and their quantities
-    
     if (selectedFruits.length === 0) {
-      setMessage("Please select at least one fruit with quantity 1 or more");
+      setMessage("Please select at least one product with quantity greater than 0");
       setMessageType("error");
       return;
     }
+
+    // Limit items based on maxItemsToShow - this is the key fix
+    const maxItems = Math.min(maxItemsToShow, selectedFruits.length);
+    const limitedFruits = selectedFruits.slice(0, maxItems);
+
+    console.log('🔍 Limited fruits:', {
+      maxItems,
+      limitedFruits: limitedFruits.length,
+      limitedFruitsDetails: limitedFruits.map(f => ({ name: f.name, quantity: fruitQuantities[f.id] }))
+    });
 
     setIsGenerating(true);
     setMessage("Generating slips...");
 
     try {
       const newSlips: GeneratedSlip[] = [];
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      
+      // Handle date logic based on mode
+      let slipDate: string;
+      if (dateMode === "exact") {
+        slipDate = exactDate;
+      } else {
+        // Range mode - generate random date within range
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const randomTime = start.getTime() + Math.random() * (end.getTime() - start.getTime());
+        const randomDate = new Date(randomTime);
+        slipDate = randomDate.toISOString().split("T")[0];
+      }
 
       for (let i = 0; i < numberOfSlips; i++) {
-        // Generate random date within range
-        const randomTime =
-          start.getTime() + Math.random() * (end.getTime() - start.getTime());
-        const randomDate = new Date(randomTime);
-        const slipDate = randomDate.toISOString().split("T")[0];
-
         // Generate random serial number
         const timestamp = Date.now().toString().slice(-6);
         const randomNum = Math.floor(Math.random() * 100000)
@@ -218,25 +440,48 @@ export default function Home() {
           .padStart(5, "0");
         const serialNumber = `${timestamp}${randomNum}`;
 
-        // Generate items with random prices and random order
+        // Generate items with user-selected quantities OR auto-generated quantities
         const items: SlipItem[] = [];
         let totalAmount = 0;
 
-        // Create a shuffled copy of selectedFruits for this slip
-        const shuffledFruits = [...selectedFruits].sort(() => Math.random() - 0.5);
+        // Create a shuffled copy of limited fruits for this slip
+        const shuffledFruits = [...limitedFruits].sort(() => Math.random() - 0.5);
 
         shuffledFruits.forEach((fruit) => {
-          const quantity = fruitQuantities[fruit.id];
+          let quantity: number;
+          
+          console.log(`🔍 Processing fruit: ${fruit.name}, current quantity: ${fruitQuantities[fruit.id]}, autoGenerate: ${autoGenerateQuantities}`);
+          
+          // If user has set a quantity > 0, use it; otherwise auto-generate
+          if (fruitQuantities[fruit.id] > 0) {
+            quantity = fruitQuantities[fruit.id];
+            console.log(`✅ Using user quantity: ${quantity}`);
+          } else if (autoGenerateQuantities) {
+            // Auto-generate realistic quantity based on unit
+            quantity = generateRealisticQuantity(fruit.unit);
+            console.log(`🎲 Auto-generated quantity: ${quantity} for unit: ${fruit.unit}`);
+          } else {
+            // If auto-generate is disabled, skip this fruit
+            console.log(`⏭️ Skipping fruit: ${fruit.name} - no quantity and auto-generate disabled`);
+            return;
+          }
+
           const unitPrice = generateRandomPrice(
             fruit.base_price,
             fruit.max_price
           );
-          const totalPrice = quantity * unitPrice;
+          
+          // Convert unit price to selected currency if different from Rs
+          const selectedCurrency = slipFormats.find(f => f.id === selectedFormat)?.currency_symbol || 'Rs';
+          const convertedUnitPrice = selectedCurrency !== 'Rs' ? 
+            convertCurrency(unitPrice, 'Rs', selectedCurrency) : unitPrice;
+          
+          const totalPrice = quantity * convertedUnitPrice;
 
           items.push({
             fruit,
             quantity,
-            unit_price: unitPrice,
+            unit_price: convertedUnitPrice,
             total_price: totalPrice,
           });
 
@@ -257,8 +502,6 @@ export default function Home() {
           items,
         });
       }
-
-      // Debug: Log the final generated slips with item details
 
       setGeneratedSlips(newSlips);
       setMessage(`${numberOfSlips} slips generated successfully!`);
@@ -388,7 +631,7 @@ export default function Home() {
     <span style="flex:1;text-align:center;">${item.quantity} ${
           item.fruit.unit
         }</span>
-    <span style="flex:1;text-align:right;">${item.total_price.toFixed(2)}</span>
+         <span style="flex:1;text-align:right;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs')}</span>
             </div>
           `;
         });
@@ -420,7 +663,7 @@ export default function Home() {
         .replace(/\{\{store_website\}\}/g, selectedTemplate.store_website || "")
         .replace(/\{\{date\}\}/g, formattedDate)
         .replace(/\{\{slip_number\}\}/g, slip.serial_number)
-        .replace(/\{\{items\}\}/g, itemsHtml)
+        .replace(/\{\{items\}\}/g, selectedTemplate.category === 'international' ? '' : itemsHtml)
         .replace(/\{\{total\}\}/g, slip.total_amount.toFixed(2))
         .replace(/\{\{tax_rate\}\}/g, (selectedTemplate.tax_rate || 0).toString())
         .replace(/\{\{tax_amount\}\}/g, taxAmount)
@@ -429,7 +672,25 @@ export default function Home() {
           /\{\{currency_symbol\}\}/g,
           selectedTemplate.currency_symbol || "Rs"
         )
-        .replace(/\{\{footer_text\}\}/g, selectedTemplate.footer_text || "");
+        .replace(/\{\{footer_text\}\}/g, selectedTemplate.footer_text || "")
+        // Additional placeholders for international templates
+        .replace(/\{\{cashier_name\}\}/g, "CASHIER")
+        .replace(/\{\{time\}\}/g, new Date().toLocaleTimeString())
+        .replace(/\{\{cash_amount\}\}/g, (grandTotal + 3).toFixed(2))
+        .replace(/\{\{change_amount\}\}/g, "3.00")
+        .replace(/\{\{items_count\}\}/g, slip.items.length.toString())
+        .replace(/\{\{total_quantity\}\}/g, slip.items.reduce((sum, item) => sum + item.quantity, 0).toString())
+        // Additional placeholders for Dubai template
+        .replace(/\{\{counter\}\}/g, "COUNTER-1")
+        .replace(/\{\{trn\}\}/g, "100071695100003")
+        .replace(/\{\{invoice_number\}\}/g, "01888103")
+        // Item-specific placeholders for hardcoded items
+        .replace(/\{\{item1_price\}\}/g, "4.50")
+        .replace(/\{\{item1_qty\}\}/g, "1")
+        .replace(/\{\{item1_total\}\}/g, "4.50")
+        .replace(/\{\{item2_price\}\}/g, "2.50")
+        .replace(/\{\{item2_qty\}\}/g, "1")
+        .replace(/\{\{item2_total\}\}/g, "2.50")
 
       // Debug: Log the final template content
 
@@ -501,37 +762,174 @@ export default function Home() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select Format</option>
-                {slipFormats.map((format) => (
-                  <option key={format.id} value={format.id}>
-                    {format.name}
-                  </option>
+                {/* Group by category */}
+                {Object.entries(
+                  slipFormats.reduce((acc, format) => {
+                    const category = format.category || 'standard';
+                    if (!acc[category]) acc[category] = [];
+                    acc[category].push(format);
+                    return acc;
+                  }, {} as Record<string, SlipFormat[]>)
+                ).map(([category, formats]) => (
+                  <optgroup key={category} label={`${category.charAt(0).toUpperCase() + category.slice(1)} Templates`}>
+                    {formats.map((format) => (
+                      <option key={format.id} value={format.id}>
+                        {format.name}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
+              {selectedFormat && (
+                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Currency: {slipFormats.find(f => f.id === selectedFormat)?.currency_symbol || 'Rs'}
+                  {slipFormats.find(f => f.id === selectedFormat)?.currency_symbol !== 'Rs' && (
+                    <span className="ml-1 text-blue-600">
+                      (Prices will be converted from Rs)
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
+            {/* Date Mode Toggle */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Start Date
+                Date Mode
               </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handleDateModeChange("range")}
+                  className={`px-3 py-2 text-sm rounded-md transition-colors ${
+                    dateMode === "range"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  Date Range
+                </button>
+                <button
+                  onClick={() => handleDateModeChange("exact")}
+                  className={`px-3 py-2 text-sm rounded-md transition-colors ${
+                    dateMode === "exact"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                  }`}
+                >
+                  Exact Date
+                </button>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                End Date
-              </label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+                        {/* Conditional Date Inputs */}
+            {dateMode === "range" ? (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Exact Date
+                </label>
+                <input
+                  type="date"
+                  value={exactDate}
+                  onChange={(e) => setExactDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
+
+            {/* Show disabled date range inputs when in exact mode */}
+            {dateMode === "exact" && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 dark:text-gray-500 mb-2">
+                    Start Date (Disabled - Exact Mode)
+                  </label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-200 bg-gray-100 text-gray-400 rounded-md cursor-not-allowed"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-400 dark:text-gray-500 mb-2">
+                    End Date (Disabled - Exact Mode)
+                  </label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-200 bg-gray-100 text-gray-400 rounded-md cursor-not-allowed"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Date Reset Button */}
+            <div className="flex items-end">
+              <button
+                onClick={resetDatesToDefault}
+                type="button"
+                className="w-full px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-md transition-colors border border-gray-300 dark:border-gray-600"
+              >
+                Reset to Default Dates
+              </button>
             </div>
+          </div>
+
+          {/* Date Range Information */}
+          <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <div className="text-sm text-green-800 dark:text-green-200">
+              <div className="font-medium mb-2">📅 Date Selection Options:</div>
+              <div className="text-xs">
+                <div className="mb-2">
+                  <strong>🎯 Date Range Mode:</strong>
+                  <br />
+                  • <strong>Default Range:</strong> 15 days ago to today (automatically set)
+                  <br />
+                  • <strong>Custom Selection:</strong> You can manually select any start and end dates
+                  <br />
+                  • <strong>Random Generation:</strong> Each slip gets a random date within your selected range
+                </div>
+                <div className="mb-2">
+                  <strong>📌 Exact Date Mode:</strong>
+                  <br />
+                  • <strong>Single Date:</strong> All slips will use the exact date you select
+                  <br />
+                  • <strong>No Randomization:</strong> Perfect for specific date requirements
+                </div>
+                <div>
+                  • <strong>Quick Reset:</strong> Use "Reset to Default Dates" to return to 15 days ago → today
+                </div>
+              </div>
+            </div>
+          </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -546,56 +944,293 @@ export default function Home() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+
+            {/* New Item Control Fields */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Maximum Items per Slip
+              </label>
+              <div className="flex items-center space-x-4">
+                <input
+                  type="range"
+                  min="1"
+                  max="20"
+                  value={maxItemsToShow}
+                  onChange={(e) => setMaxItemsToShow(parseInt(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="text-sm text-gray-600 dark:text-gray-400 min-w-[3rem]">
+                  {maxItemsToShow}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Control how many items appear on each slip (1-20)
+              </p>
+            </div>
+
+            <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={autoGenerateQuantities}
+                  onChange={(e) => setAutoGenerateQuantities(e.target.checked)}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Auto-generate realistic quantities based on product units
+                </span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                When checked: Pieces (1-20), KG (1-7), Glasses (1-20), etc.
+              </p>
+            </div>
+          
+          {/* Currency Information */}
+          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <div className="text-sm text-blue-800 dark:text-blue-200">
+              <div className="font-medium mb-2">💱 Available Currencies:</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                <div>🇮🇳 Rs - Indian Rupees</div>
+                <div>🇺🇸 $ - US Dollars</div>
+                <div>🇪🇺 € - Euros</div>
+                <div>🇬🇧 £ - British Pounds</div>
+                <div>🇯🇵 ¥ - Japanese Yen</div>
+                <div>🇷🇺 ₽ - Russian Ruble</div>
+              </div>
+              <div className="mt-2 text-xs text-blue-600 dark:text-blue-300">
+                💡 Prices are automatically converted from Rs to your selected currency
+              </div>
+            </div>
           </div>
 
-          {/* Fruit Selection */}
+          {/* Category Selection */}
           <div className="mt-6">
             <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white">
-              Select Fruits & Quantities
+              Select Product Category
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              Set quantity for each fruit (minimum: 1, maximum: 12)
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {fruits.map((fruit) => (
-                <div key={fruit.id} className="flex items-center space-x-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max="12"
-                    value={fruitQuantities[fruit.id] || 0}
-                    onChange={(e) => {
-                      let newQuantity = parseInt(e.target.value) || 0;
-                      const oldQuantity = fruitQuantities[fruit.id] || 0;
-                      
-                      // Enforce quantity limits
-                      if (newQuantity < 1) {
-                        newQuantity = 1;
-                        setMessage("Quantity must be at least 1");
-                        setMessageType("error");
-                        setTimeout(() => setMessage(""), 3000);
-                      } else if (newQuantity > 12) {
-                        newQuantity = 12;
-                        setMessage("Quantity cannot exceed 12");
-                        setMessageType("error");
-                        setTimeout(() => setMessage(""), 3000);
-                      }
-                      
-
-                      setFruitQuantities({
-                        ...fruitQuantities,
-                        [fruit.id]: newQuantity,
-                      });
-                    }}
-                    className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
-                    placeholder="1"
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {fruit.name} (${fruit.base_price}-${fruit.max_price})
-                  </span>
+                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+               Choose the type of products you want to include in your slips. 
+               {selectedFormat && (
+                 <span className="font-medium"> 
+                   Currency: {slipFormats.find(f => f.id === selectedFormat)?.currency_symbol || 'Rs'}
+                   {slipFormats.find(f => f.id === selectedFormat)?.currency_symbol !== 'Rs' && (
+                     <span className="text-blue-600"> (Prices converted from Rs)</span>
+                   )}
+                 </span>
+               )}
+             </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <button
+                onClick={() => handleCategoryChange("fruits")}
+                className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                  selectedCategory === "fruits"
+                    ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+                    : "border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500"
+                }`}
+              >
+                <div className="text-center">
+                  <div className="text-2xl mb-1">🍎</div>
+                  <div className="font-medium">Fruits</div>
+                  <div className="text-xs text-gray-500">Fresh fruits with proper units</div>
                 </div>
-              ))}
+              </button>
+
+              <button
+                onClick={() => handleCategoryChange("vegetables")}
+                className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                  selectedCategory === "vegetables"
+                    ? "border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300"
+                    : "border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500"
+                }`}
+              >
+                <div className="text-center">
+                  <div className="text-2xl mb-1">🥬</div>
+                  <div className="font-medium">Vegetables</div>
+                  <div className="text-xs text-gray-500">Fresh vegetables & greens</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => handleCategoryChange("shakes_juices")}
+                className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                  selectedCategory === "shakes_juices"
+                    ? "border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300"
+                    : "border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500"
+                }`}
+              >
+                <div className="text-center">
+                  <div className="text-2xl mb-1">🥤</div>
+                  <div className="font-medium">Shakes & Juices</div>
+                  <div className="text-xs text-gray-500">Beverages & smoothies</div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => handleCategoryChange("mixed")}
+                className={`px-4 py-3 rounded-lg border-2 transition-all ${
+                  selectedCategory === "mixed"
+                    ? "border-orange-500 bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300"
+                    : "border-gray-300 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500"
+                }`}
+              >
+                <div className="text-center">
+                  <div className="text-2xl mb-1">🎁</div>
+                  <div className="font-medium">Mixed Products</div>
+                  <div className="text-xs text-gray-500">Combos & baskets</div>
+                </div>
+              </button>
             </div>
+          </div>
+
+          {/* Product Selection */}
+          <div className="mt-6">
+            <h3 className="text-lg font-medium mb-3 text-gray-900 dark:text-white">
+              Select Products & Quantities
+            </h3>
+            
+            {/* Debug Info */}
+            <div className="mb-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-700">
+              <div className="text-xs text-yellow-800 dark:text-yellow-200">
+                <strong>🔍 Debug Info:</strong>
+                <br />
+                • Selected items: {Object.values(fruitQuantities).filter(qty => qty > 0).length}
+                <br />
+                • Max items per slip: {maxItemsToShow}
+                <br />
+                • Auto-generate quantities: {autoGenerateQuantities ? "ON" : "OFF"}
+                <br />
+                • Date mode: {dateMode === "range" ? "Range" : "Exact"}
+                <br />
+                • Total fruits loaded: {fruits.length}
+                <br />
+                • fruitQuantities keys: {Object.keys(fruitQuantities).length}
+              </div>
+              <button
+                onClick={() => {
+                  console.log('🔍 Current State:', {
+                    fruits: fruits.map(f => ({ id: f.id, name: f.name, category: f.category })),
+                    fruitQuantities,
+                    selectedCategory,
+                    maxItemsToShow,
+                    autoGenerateQuantities,
+                    dateMode
+                  });
+                  setMessage("Check browser console for debug info");
+                  setMessageType("info");
+                  setTimeout(() => setMessage(""), 3000);
+                }}
+                className="mt-2 px-2 py-1 bg-yellow-200 hover:bg-yellow-300 text-yellow-800 text-xs rounded border border-yellow-300"
+              >
+                Log State to Console
+              </button>
+              <button
+                onClick={() => {
+                  if (fruits.length === 0) {
+                    setMessage("No fruits loaded yet");
+                    setMessageType("error");
+                    return;
+                  }
+                  
+                  // Set random quantities for first 5 fruits
+                  const sampleQuantities: { [key: string]: number } = {};
+                  fruits.slice(0, 5).forEach((fruit) => {
+                    sampleQuantities[fruit.id] = generateRealisticQuantity(fruit.unit);
+                  });
+                  
+                  setFruitQuantities(prev => ({
+                    ...prev,
+                    ...sampleQuantities
+                  }));
+                  
+                  setMessage("Set sample quantities for first 5 fruits");
+                  setMessageType("success");
+                  setTimeout(() => setMessage(""), 3000);
+                }}
+                className="mt-2 ml-2 px-2 py-1 bg-green-200 hover:bg-green-300 text-green-800 text-xs rounded border border-green-300"
+              >
+                Set Sample Quantities
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+              {selectedCategory ? 
+                `Set quantity for each ${selectedCategory.replace('_', ' ')}. Items with quantity > 0 will appear on slips.` : 
+                'Please select a category first'
+              }
+              {selectedCategory && (
+                <span className="ml-2 font-medium text-blue-600">
+                  Selected: {Object.values(fruitQuantities).filter(qty => qty > 0).length} items
+                </span>
+              )}
+            </p>
+            {selectedCategory ? (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {fruits.slice(0, maxItemsToShow).map((fruit) => (
+                    <div key={fruit.id} className="flex items-center space-x-2 p-3 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900 dark:text-white">{fruit.name}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {selectedFormat ? 
+                            getProductPriceDisplay(
+                              fruit.base_price, 
+                              fruit.max_price, 
+                              slipFormats.find(f => f.id === selectedFormat)?.currency_symbol || 'Rs',
+                              fruit.unit
+                            ) :
+                            `Price: ${fruit.base_price} - ${fruit.max_price} per ${fruit.unit}`
+                          }
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Unit: {fruit.unit}
+                        </div>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        max="50"
+                        value={fruitQuantities[fruit.id] || 0}
+                        onChange={(e) => {
+                          let newQuantity = parseInt(e.target.value) || 0;
+                          
+                          // Enforce quantity limits
+                          if (newQuantity < 0) {
+                            newQuantity = 0;
+                          } else if (newQuantity > 50) {
+                            newQuantity = 50;
+                            setMessage("Quantity cannot exceed 50");
+                            setMessageType("error");
+                            setTimeout(() => setMessage(""), 3000);
+                          }
+
+                          setFruitQuantities({
+                            ...fruitQuantities,
+                            [fruit.id]: newQuantity,
+                          });
+                        }}
+                        className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+                        placeholder="0"
+                      />
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Show message if items are limited */}
+                {fruits.length > maxItemsToShow && (
+                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-md">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      📋 Showing {maxItemsToShow} of {fruits.length} available items. 
+                      Adjust the "Maximum Items per Slip" slider above to see more or fewer items.
+                    </p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <div className="text-4xl mb-2">🍎</div>
+                <p>Please select a product category to start</p>
+              </div>
+            )}
           </div>
 
           <div className="mt-6">
@@ -607,6 +1242,13 @@ export default function Home() {
             >
               {isGenerating ? "Generating..." : "Generate Slips"}
             </button>
+              <button
+                onClick={generateSampleQuantities}
+                type="button"
+                className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              >
+                Generate Sample Quantities
+              </button>
               <button
                 onClick={resetQuantities}
                 type="button"
@@ -755,12 +1397,12 @@ export default function Home() {
                     </div>
                   `;
 
-                  // Handlebars format - replace placeholders in the loop structure
-                  const itemTemplate = `
+                                     // Handlebars format - replace placeholders in the loop structure
+                   const itemTemplate = `
   <div style="display:flex;justify-content:space-between;margin:5px 0;font-size:12px">
     <span>${item.fruit.name}</span>
     <span>${item.quantity} ${item.fruit.unit}</span>
-    <span>${item.total_price.toFixed(2)}</span>
+    <span>${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs')}</span>
                     </div>
                   `;
 
@@ -810,23 +1452,42 @@ export default function Home() {
                   )
                   .replace(/\{\{date\}\}/g, formattedDate)
                   .replace(/\{\{slip_number\}\}/g, slip.serial_number)
-                  .replace(/\{\{items\}\}/g, handlebarsItemsHtml)
+                  .replace(/\{\{items\}\}/g, selectedTemplate.category === 'international' ? '' : handlebarsItemsHtml)
                   .replace(
                     /\{\{total\}\}/g,
-                    slip.total_amount.toFixed(2)
+                    formatPrice(slip.total_amount, selectedTemplate.currency_symbol || 'Rs')
                   )
                   .replace(
                     /\{\{grand_total\}\}/g,
-                    grandTotal.toFixed(2)
+                    formatPrice(grandTotal, selectedTemplate.currency_symbol || 'Rs')
                   )
                   .replace(
                     /\{\{tax_amount\}\}/g,
-                    taxAmount
+                    formatPrice(parseFloat(taxAmount), selectedTemplate.currency_symbol || 'Rs')
                   )
                   .replace(
                     /\{\{tax_rate\}\}/g,
                     (selectedTemplate.tax_rate || 0).toString()
                   )
+                  // Additional placeholders for international templates
+                  .replace(/\{\{cashier_name\}\}/g, "CASHIER")
+                  .replace(/\{\{time\}\}/g, new Date().toLocaleTimeString())
+                  .replace(/\{\{cash_amount\}\}/g, formatPrice(grandTotal + 3, selectedTemplate.currency_symbol || 'Rs'))
+                  .replace(/\{\{change_amount\}\}/g, formatPrice(3, selectedTemplate.currency_symbol || 'Rs'))
+                  .replace(/\{\{items_count\}\}/g, slip.items.length.toString())
+                  .replace(/\{\{total_quantity\}\}/g, slip.items.reduce((sum, item) => sum + item.quantity, 0).toString())
+                  .replace(/\{\{footer_text\}\}/g, selectedTemplate.footer_text || "Thank you for your business!")
+                  // Additional placeholders for Dubai template
+                  .replace(/\{\{counter\}\}/g, "COUNTER-1")
+                  .replace(/\{\{trn\}\}/g, "100071695100003")
+                  .replace(/\{\{invoice_number\}\}/g, "01888103")
+                  // Item-specific placeholders for hardcoded items
+                  .replace(/\{\{item1_price\}\}/g, "4.50")
+                  .replace(/\{\{item1_qty\}\}/g, "1")
+                  .replace(/\{\{item1_total\}\}/g, "4.50")
+                  .replace(/\{\{item2_price\}\}/g, "2.50")
+                  .replace(/\{\{item2_qty\}\}/g, "1")
+                  .replace(/\{\{item2_total\}\}/g, "2.50")
                   .replace(
                     /\{\{currency_symbol\}\}/g,
                     selectedTemplate.currency_symbol || "Rs"

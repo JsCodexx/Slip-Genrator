@@ -6,8 +6,9 @@ A comprehensive, modern web application for generating professional slips with c
 
 ### Core Functionality
 - **Multi-format Slip Generation**: Support for 20+ pre-built slip templates
+- **Product Categories**: 4 categories (Fruits, Vegetables, Shakes/Juices, Mixed) with proper units
 - **Dynamic Content**: Real-time slip generation with customizable items and quantities
-- **Professional Output**: Clean, print-ready slip formats
+- **Professional Output**: Clean, print-ready slip formats with correct units
 - **User Management**: Secure authentication with multiple providers
 
 ### User Dashboard
