@@ -1,11 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable static exports if needed
-  // output: 'export',
-  
-  // Optimize images
+  // Optimize images - use environment variable for domain
   images: {
-    domains: ['slip_genration.supabase.co'],
+    domains: [
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('https://', '').replace('http://', '') || 'slip_genration.supabase.co'
+    ],
     unoptimized: true
   },
   
