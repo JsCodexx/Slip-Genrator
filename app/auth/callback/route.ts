@@ -13,12 +13,20 @@ export async function GET(request: Request) {
 
     if (code) {
       const supabase = createRouteHandlerClient({ cookies })
-      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      
+      // For implicit flow, we don't need to exchange code for session
+      // The session should already be available
+      const { data: { session }, error } = await supabase.auth.getSession()
       
       if (error) {
         console.error('Auth callback error:', error)
         // Redirect to auth page with error
         return NextResponse.redirect(`${requestUrl.origin}/auth?error=auth_callback_failed`)
+      }
+      
+      if (!session) {
+        console.error('No session found after magic link')
+        return NextResponse.redirect(`${requestUrl.origin}/auth?error=no_session`)
       }
     }
 

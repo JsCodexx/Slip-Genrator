@@ -592,42 +592,42 @@ export default function TemplatesPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      const sampleTemplate = `<div style="width:320px;margin:auto;font-family:Verdana,sans-serif;border:1px solid #000;padding:10px">
-  <div style="text-align:center;margin-bottom:15px">
+                      const sampleTemplate = `<div style="width:80mm;margin:auto;font-family:Courier New,monospace;border:1px solid #000;padding:4mm;font-size:10px;line-height:1.2">
+  <div style="text-align:center;margin-bottom:3px">
     {{logo}}
-    <h2 style="margin:10px 0;color:#333">{{store_name}}</h2>
-    <p style="margin:5px 0;color:#666;font-size:12px">{{store_address}}</p>
-    <p style="margin:5px 0;color:#666;font-size:12px">Phone: {{store_phone}}</p>
-    <p style="margin:5px 0;color:#666;font-size:12px">Email: {{store_email}}</p>
+    <h2 style="margin:2px 0;color:#333;font-size:12px">{{store_name}}</h2>
+    <p style="margin:1px 0;color:#666;font-size:8px">{{store_address}}</p>
+    <p style="margin:1px 0;color:#666;font-size:8px">Phone: {{store_phone}}</p>
+    <p style="margin:1px 0;color:#666;font-size:8px">Email: {{store_email}}</p>
   </div>
   
-  <hr style="border:1px solid #ddd;margin:15px 0">
+  <hr style="border:1px solid #ddd;margin:2px 0">
   
-  <div style="margin-bottom:15px">
-    <p style="margin:5px 0;font-size:12px">Date: {{date}}</p>
-    <p style="margin:5px 0;font-size:12px">Slip #: {{slip_number}}</p>
+  <div style="margin-bottom:3px">
+    <p style="margin:1px 0;font-size:9px">Date: {{date}}</p>
+    <p style="margin:1px 0;font-size:9px">Slip #: {{slip_number}}</p>
   </div>
   
-  <hr style="border:1px solid #ddd;margin:15px 0">
+  <hr style="border:1px solid #ddd;margin:2px 0">
   
-  <div style="margin-bottom:15px">
+  <div style="margin-bottom:3px">
     {{#each items}}
-    <div style="display:flex;justify-content:space-between;margin:5px 0;font-size:12px">
+    <div style="display:flex;justify-content:space-between;margin:1px 0;font-size:9px">
       <span>{{name}}</span>
       <span>{{price}}</span>
     </div>
     {{/each}}
   </div>
   
-  <hr style="border:1px solid #ddd;margin:15px 0">
+  <hr style="border:1px solid #ddd;margin:2px 0">
   
-  <div style="text-align:right;margin-bottom:15px">
-    <p style="margin:5px 0;font-weight:bold">Subtotal: {{currency_symbol}} {{total}}</p>
-    <p style="margin:5px 0;font-size:11px;color:#666">Tax ({{tax_rate}}%): {{currency_symbol}} {{tax_amount}}</p>
-    <p style="margin:5px 0;font-weight:bold">Total: {{currency_symbol}} {{grand_total}}</p>
+  <div style="text-align:right;margin-bottom:3px">
+    <p style="margin:1px 0;font-weight:bold;font-size:9px">Subtotal: {{currency_symbol}} {{total}}</p>
+    <p style="margin:1px 0;font-size:8px;color:#666">Tax ({{tax_rate}}%): {{currency_symbol}} {{tax_amount}}</p>
+    <p style="margin:1px 0;font-weight:bold;font-size:9px">Total: {{currency_symbol}} {{grand_total}}</p>
   </div>
   
-  <div style="text-align:center;margin-top:20px;font-size:11px;color:#666">
+  <div style="text-align:center;margin-top:3px;font-size:8px;color:#666">
     {{footer_text}}
   </div>
 </div>`;

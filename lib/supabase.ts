@@ -10,8 +10,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // Use production URLs for auth redirects
-    flowType: 'pkce',
+    // Disable PKCE for magic links to work properly
+    flowType: 'implicit',
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true
