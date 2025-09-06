@@ -89,7 +89,7 @@ export default function AuthPage() {
     setMessage('')
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      redirectTo: `http://localhost:3000/auth/callback`,
     })
 
     if (error) {
@@ -112,7 +112,7 @@ export default function AuthPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `http://localhost:3000/auth/callback`,
       },
     })
 
