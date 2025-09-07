@@ -91,7 +91,13 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [slipFormats, setSlipFormats] = useState<SlipFormat[]>([]);
   const [fruits, setFruits] = useState<Fruit[]>([]);
-  const [selectedFormat, setSelectedFormat] = useState<string>("");
+  const [selectedFormat, setSelectedFormat] = useState<string>(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('selectedSlipFormat') || "";
+    }
+    return "";
+  });
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [numberOfSlips, setNumberOfSlips] = useState<number>(1);
@@ -115,6 +121,7 @@ export default function Home() {
   // New state for date mode
   const [dateMode, setDateMode] = useState<"range" | "exact">("range");
   const [exactDate, setExactDate] = useState<string>("");
+  const [formatsLoaded, setFormatsLoaded] = useState<boolean>(false);
 
   useEffect(() => {
     const getUser = async () => {
@@ -145,7 +152,10 @@ export default function Home() {
     } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
       if (session?.user) {
         setUser(session.user);
-        loadSlipFormats();
+        // Only load formats if not already loaded to prevent resetting selected format
+        if (!formatsLoaded) {
+          loadSlipFormats();
+        }
         loadFruits("all"); // Load all categories initially
         
         // Set default date range: 15 days ago to today
@@ -226,7 +236,17 @@ export default function Home() {
     }
   }, [autoGenerateQuantities, fruits]); // Depend on autoGenerateQuantities and fruits
 
+  const handleFormatChange = (formatId: string) => {
+    console.log('🔄 Format changed to:', formatId);
+    setSelectedFormat(formatId);
+    // Save to localStorage for persistence
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('selectedSlipFormat', formatId);
+    }
+  };
+
   const loadSlipFormats = async () => {
+    console.log('🔄 Loading slip formats...');
     try {
       const { data, error } = await supabase
         .from("slip_formats")
@@ -238,8 +258,10 @@ export default function Home() {
       if (data && data.length > 0) {
       }
       setSlipFormats(data || []);
-      if (data && data.length > 0) {
-        setSelectedFormat(data[0].id);
+      setFormatsLoaded(true);
+      // Only set default format if no format is currently selected
+      if (data && data.length > 0 && !selectedFormat) {
+        handleFormatChange(data[0].id);
       }
     } catch (error) {
     }
@@ -607,6 +629,12 @@ export default function Home() {
                 break-after: page !important;
               }
               /* Thermal printer cutting commands */
+              .receipt {
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
               .receipt::after {
                 content: "\\f\\f\\f" !important;
                 display: block !important;
@@ -621,6 +649,11 @@ export default function Home() {
                 content: "" !important;
                 page-break-after: avoid !important;
                 break-after: avoid !important;
+              }
+              /* Force page break after each receipt */
+              .receipt + .receipt {
+                page-break-before: always !important;
+                break-before: page !important;
               }
               /* Thermal printer optimized item display */
               .receipt div[style*="display:flex"] {
@@ -668,7 +701,7 @@ export default function Home() {
         <body>
     `;
 
-    generatedSlips.forEach((slip) => {
+    generatedSlips.forEach((slip, index) => {
       const slipDate = new Date(slip.slip_date);
       const formattedDate = slipDate.toLocaleDateString("en-GB");
 
@@ -718,9 +751,25 @@ export default function Home() {
         .replace(/\{\{tax_rate\}\}/g, (selectedTemplate.tax_rate || 0).toString())
         .replace(/\{\{tax_amount\}\}/g, taxAmount)
         .replace(/\{\{grand_total\}\}/g, grandTotal.toFixed(2))
-        .replace(/\{\{currency_symbol\}\}/g, selectedTemplate.currency_symbol || 'Rs');
+        .replace(/\{\{currency_symbol\}\}/g, selectedTemplate.currency_symbol || 'Rs')
+        // Handle footer_text - if empty, remove the entire footer section
+        .replace(/\{\{footer_text\}\}/g, selectedTemplate.footer_text || "")
+        // Remove footer divs that contain only empty footer_text
+        .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, selectedTemplate.footer_text ? `<div>${selectedTemplate.footer_text}</div>` : "")
+        // Remove any remaining empty footer sections
+        .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, "");
 
       printContent += `<div class="receipt">${templateHtml}</div>`;
+      
+      // Add explicit page break after each receipt (except the last one)
+      if (index < generatedSlips.length - 1) {
+        printContent += `
+          <div style="page-break-after: always; break-after: page; height: 0; margin: 0; padding: 0;"></div>
+          <div style="page-break-before: always; break-before: page; height: 0; margin: 0; padding: 0;"></div>
+          <!-- ESC/POS Cut Command -->
+          <div style="display: none;">\\f\\f\\f</div>
+        `;
+      }
     });
 
     printContent += `
@@ -730,9 +779,36 @@ export default function Home() {
 
     printWindow.document.write(printContent);
     printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
+    
+    // Force page breaks for thermal printer
+    setTimeout(() => {
+      const receipts = printWindow.document.querySelectorAll('.receipt');
+      receipts.forEach((receipt, index) => {
+        if (index < receipts.length - 1) {
+          // Add explicit page break after each receipt
+          const receiptElement = receipt as HTMLElement;
+          receiptElement.style.pageBreakAfter = 'always';
+          receiptElement.style.breakAfter = 'page';
+          
+          // Add ESC/POS cut command
+          const cutDiv = printWindow.document.createElement('div');
+          cutDiv.style.pageBreakAfter = 'always';
+          cutDiv.style.breakAfter = 'page';
+          cutDiv.style.height = '0';
+          cutDiv.style.margin = '0';
+          cutDiv.style.padding = '0';
+          cutDiv.innerHTML = '\\f\\f\\f';
+          
+          if (receipt.parentNode) {
+            receipt.parentNode.insertBefore(cutDiv, receipt.nextSibling);
+          }
+        }
+      });
+      
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }, 100);
   };
 
   const previewSlip = () => {
@@ -787,7 +863,7 @@ export default function Home() {
                 value={selectedFormat}
                 onChange={(e) => {
                   const newFormat = e.target.value;
-                  setSelectedFormat(newFormat);
+                  handleFormatChange(newFormat);
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
@@ -1526,6 +1602,10 @@ export default function Home() {
                     /\{\{footer_text\}\}/g,
                     selectedTemplate.footer_text || ""
                   )
+                  // Remove footer divs that contain only empty footer_text
+                  .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, selectedTemplate.footer_text ? `<div>${selectedTemplate.footer_text}</div>` : "")
+                  // Remove any remaining empty footer sections
+                  .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, "")
                   // Handle Handlebars loop structure - process each item individually
                   .replace(
                     /\{\{#each items\}\}([\s\S]*?)\{\{\/each\}\}/g,
