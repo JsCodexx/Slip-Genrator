@@ -598,95 +598,13 @@ export default function Home() {
       return;
     }
 
-    // Print each receipt individually to ensure proper cutting
-    printReceiptsIndividually(0);
-  };
-
-  const printReceiptsIndividually = (index: number) => {
-    if (index >= generatedSlips.length) {
-      setMessage("All receipts printed successfully!");
-      setMessageType("success");
-      return;
-    }
-
-    const slip = generatedSlips[index];
-    const slipDate = new Date(slip.slip_date);
-    const formattedDate = slipDate.toLocaleDateString("en-GB");
-
-    const selectedTemplate = slipFormats.find((f) => f.id === selectedFormat);
-    if (!selectedTemplate) {
-      printReceiptsIndividually(index + 1);
-      return;
-    }
-
-    // Items HTML
-    let itemsHtml = "";
-    slip.items.forEach((item) => {
-      itemsHtml += `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin:5px 0;font-size:12px">
-          <span style="flex:1;text-align:left;">${item.fruit.name}</span>
-          <span style="flex:1;text-align:center;">${item.quantity} ${item.fruit.unit}</span>
-          <span style="flex:1;text-align:right;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs')}</span>
-        </div>
-      `;
-    });
-
-    const taxAmount = (
-      (slip.total_amount * (selectedTemplate.tax_rate || 0)) / 100
-    ).toFixed(2);
-
-    const grandTotal = slip.total_amount + parseFloat(taxAmount);
-
-    // Replace placeholders and clean any potential \f characters
-    let templateHtml = selectedTemplate.template_html
-      .replace(
-        /\{\{logo\}\}/g,
-        selectedTemplate.logo_data
-          ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="max-width: 60px; height: auto;">`
-          : ""
-      )
-      .replace(
-        /\{\{store_name\}\}/g,
-        selectedTemplate.store_name || selectedTemplate.name
-      )
-      .replace(/\{\{store_address\}\}/g, selectedTemplate.store_address || "")
-      .replace(/\{\{store_phone\}\}/g, selectedTemplate.store_phone || "")
-      .replace(/\{\{store_email\}\}/g, selectedTemplate.store_email || "")
-      .replace(/\{\{store_website\}\}/g, selectedTemplate.store_website || "")
-      .replace(/\{\{date\}\}/g, formattedDate)
-      .replace(/\{\{slip_number\}\}/g, slip.serial_number)
-      .replace(/\{\{items\}\}/g, selectedTemplate.category === 'international' ? '' : itemsHtml)
-      .replace(/\{\{total\}\}/g, slip.total_amount.toFixed(2))
-      .replace(/\{\{tax_rate\}\}/g, (selectedTemplate.tax_rate || 0).toString())
-      .replace(/\{\{tax_amount\}\}/g, taxAmount)
-      .replace(/\{\{grand_total\}\}/g, grandTotal.toFixed(2))
-      .replace(/\{\{currency_symbol\}\}/g, selectedTemplate.currency_symbol || 'Rs')
-      .replace(/\{\{footer_text\}\}/g, selectedTemplate.footer_text || "")
-      .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, selectedTemplate.footer_text ? `<div>${selectedTemplate.footer_text}</div>` : "")
-      .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, "")
-      // Clean any potential \f characters
-      .replace(/\\f/g, '')
-      .replace(/\f/g, '')
-      .replace(/\\n/g, '\n')
-      .replace(/\\r/g, '\r');
-
-    // Debug: Check if template still contains \f characters
-    if (templateHtml.includes('\\f') || templateHtml.includes('\f')) {
-      console.warn('⚠️ Template still contains \\f characters:', templateHtml.match(/\\f|\f/g));
-      // Force remove any remaining \f characters
-      templateHtml = templateHtml.replace(/\\f|\f/g, '');
-    }
-
     const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      printReceiptsIndividually(index + 1);
-      return;
-    }
+    if (!printWindow) return;
 
-    const printContent = `
+    let printContent = `
       <html>
         <head>
-          <title>Receipt ${index + 1}</title>
+          <title>Generated Receipts</title>
           <style>
             @media print {
               body {
@@ -706,6 +624,8 @@ export default function Home() {
                 color: black !important;
                 box-shadow: none !important;
                 border: none !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
               }
               .receipt div[style*="display:flex"] {
                 display: flex !important;
@@ -743,7 +663,81 @@ export default function Home() {
           </style>
         </head>
         <body>
-          <div class="receipt">${templateHtml}</div>
+    `;
+
+    generatedSlips.forEach((slip, index) => {
+      const slipDate = new Date(slip.slip_date);
+      const formattedDate = slipDate.toLocaleDateString("en-GB");
+
+      const selectedTemplate = slipFormats.find((f) => f.id === selectedFormat);
+      if (!selectedTemplate) return;
+
+      // Items HTML
+      let itemsHtml = "";
+      slip.items.forEach((item) => {
+        itemsHtml += `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin:5px 0;font-size:12px">
+            <span style="flex:1;text-align:left;">${item.fruit.name}</span>
+            <span style="flex:1;text-align:center;">${item.quantity} ${item.fruit.unit}</span>
+            <span style="flex:1;text-align:right;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs')}</span>
+          </div>
+        `;
+      });
+
+      const taxAmount = (
+        (slip.total_amount * (selectedTemplate.tax_rate || 0)) / 100
+      ).toFixed(2);
+
+      const grandTotal = slip.total_amount + parseFloat(taxAmount);
+
+      // Replace placeholders and clean any potential \f characters
+      let templateHtml = selectedTemplate.template_html
+        .replace(
+          /\{\{logo\}\}/g,
+          selectedTemplate.logo_data
+            ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="max-width: 60px; height: auto;">`
+            : ""
+        )
+        .replace(
+          /\{\{store_name\}\}/g,
+          selectedTemplate.store_name || selectedTemplate.name
+        )
+        .replace(/\{\{store_address\}\}/g, selectedTemplate.store_address || "")
+        .replace(/\{\{store_phone\}\}/g, selectedTemplate.store_phone || "")
+        .replace(/\{\{store_email\}\}/g, selectedTemplate.store_email || "")
+        .replace(/\{\{store_website\}\}/g, selectedTemplate.store_website || "")
+        .replace(/\{\{date\}\}/g, formattedDate)
+        .replace(/\{\{slip_number\}\}/g, slip.serial_number)
+        .replace(/\{\{items\}\}/g, selectedTemplate.category === 'international' ? '' : itemsHtml)
+        .replace(/\{\{total\}\}/g, slip.total_amount.toFixed(2))
+        .replace(/\{\{tax_rate\}\}/g, (selectedTemplate.tax_rate || 0).toString())
+        .replace(/\{\{tax_amount\}\}/g, taxAmount)
+        .replace(/\{\{grand_total\}\}/g, grandTotal.toFixed(2))
+        .replace(/\{\{currency_symbol\}\}/g, selectedTemplate.currency_symbol || 'Rs')
+        .replace(/\{\{footer_text\}\}/g, selectedTemplate.footer_text || "")
+        .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, selectedTemplate.footer_text ? `<div>${selectedTemplate.footer_text}</div>` : "")
+        .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, "")
+        // Clean any potential \f characters
+        .replace(/\\f/g, '')
+        .replace(/\f/g, '')
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r');
+
+      // Debug: Check if template still contains \f characters
+      if (templateHtml.includes('\\f') || templateHtml.includes('\f')) {
+        console.warn('⚠️ Template still contains \\f characters:', templateHtml.match(/\\f|\f/g));
+        templateHtml = templateHtml.replace(/\\f|\f/g, '');
+      }
+
+      printContent += `<div class="receipt">${templateHtml}</div>`;
+      
+      // Add spacing between receipts (no cutting elements)
+      if (index < generatedSlips.length - 1) {
+        printContent += `<div style="height: 30px; margin: 0; padding: 0; border: none;"></div>`;
+      }
+    });
+
+    printContent += `
         </body>
       </html>
     `;
@@ -758,16 +752,11 @@ export default function Home() {
     printWindow.document.write(cleanPrintContent);
     printWindow.document.close();
     
-    // Print and move to next receipt
+    // Single print job
     setTimeout(() => {
       printWindow.focus();
       printWindow.print();
       printWindow.close();
-      
-      // Wait a bit then print next receipt
-      setTimeout(() => {
-        printReceiptsIndividually(index + 1);
-      }, 500);
     }, 100);
   };
 
