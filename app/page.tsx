@@ -598,15 +598,96 @@ export default function Home() {
       return;
     }
 
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
+    // Print each receipt individually to ensure proper cutting
+    printReceiptsIndividually(0);
+  };
 
-    let printContent = `
+  const printReceiptsIndividually = (index: number) => {
+    if (index >= generatedSlips.length) {
+      setMessage("All receipts printed successfully!");
+      setMessageType("success");
+      return;
+    }
+
+    const slip = generatedSlips[index];
+    const slipDate = new Date(slip.slip_date);
+    const formattedDate = slipDate.toLocaleDateString("en-GB");
+
+    const selectedTemplate = slipFormats.find((f) => f.id === selectedFormat);
+    if (!selectedTemplate) {
+      printReceiptsIndividually(index + 1);
+      return;
+    }
+
+    // Items HTML
+    let itemsHtml = "";
+    slip.items.forEach((item) => {
+      itemsHtml += `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:5px 0;font-size:12px">
+          <span style="flex:1;text-align:left;">${item.fruit.name}</span>
+          <span style="flex:1;text-align:center;">${item.quantity} ${item.fruit.unit}</span>
+          <span style="flex:1;text-align:right;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs')}</span>
+        </div>
+      `;
+    });
+
+    const taxAmount = (
+      (slip.total_amount * (selectedTemplate.tax_rate || 0)) / 100
+    ).toFixed(2);
+
+    const grandTotal = slip.total_amount + parseFloat(taxAmount);
+
+    // Replace placeholders and clean any potential \f characters
+    let templateHtml = selectedTemplate.template_html
+      .replace(
+        /\{\{logo\}\}/g,
+        selectedTemplate.logo_data
+          ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="max-width: 60px; height: auto;">`
+          : ""
+      )
+      .replace(
+        /\{\{store_name\}\}/g,
+        selectedTemplate.store_name || selectedTemplate.name
+      )
+      .replace(/\{\{store_address\}\}/g, selectedTemplate.store_address || "")
+      .replace(/\{\{store_phone\}\}/g, selectedTemplate.store_phone || "")
+      .replace(/\{\{store_email\}\}/g, selectedTemplate.store_email || "")
+      .replace(/\{\{store_website\}\}/g, selectedTemplate.store_website || "")
+      .replace(/\{\{date\}\}/g, formattedDate)
+      .replace(/\{\{slip_number\}\}/g, slip.serial_number)
+      .replace(/\{\{items\}\}/g, selectedTemplate.category === 'international' ? '' : itemsHtml)
+      .replace(/\{\{total\}\}/g, slip.total_amount.toFixed(2))
+      .replace(/\{\{tax_rate\}\}/g, (selectedTemplate.tax_rate || 0).toString())
+      .replace(/\{\{tax_amount\}\}/g, taxAmount)
+      .replace(/\{\{grand_total\}\}/g, grandTotal.toFixed(2))
+      .replace(/\{\{currency_symbol\}\}/g, selectedTemplate.currency_symbol || 'Rs')
+      .replace(/\{\{footer_text\}\}/g, selectedTemplate.footer_text || "")
+      .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, selectedTemplate.footer_text ? `<div>${selectedTemplate.footer_text}</div>` : "")
+      .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, "")
+      // Clean any potential \f characters
+      .replace(/\\f/g, '')
+      .replace(/\f/g, '')
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r');
+
+    // Debug: Check if template still contains \f characters
+    if (templateHtml.includes('\\f') || templateHtml.includes('\f')) {
+      console.warn('⚠️ Template still contains \\f characters:', templateHtml.match(/\\f|\f/g));
+      // Force remove any remaining \f characters
+      templateHtml = templateHtml.replace(/\\f|\f/g, '');
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      printReceiptsIndividually(index + 1);
+      return;
+    }
+
+    const printContent = `
       <html>
         <head>
-          <title>Generated Receipts</title>
+          <title>Receipt ${index + 1}</title>
           <style>
-            ${document.querySelector("style")?.innerHTML || ""}
             @media print {
               body {
                 margin: 0 !important;
@@ -625,37 +706,7 @@ export default function Home() {
                 color: black !important;
                 box-shadow: none !important;
                 border: none !important;
-                page-break-after: always !important;
-                break-after: page !important;
               }
-              /* Thermal printer cutting commands */
-              .receipt {
-                page-break-after: always !important;
-                break-after: page !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-              }
-              .receipt::after {
-                content: "\\f\\f\\f" !important;
-                display: block !important;
-                height: 0 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                page-break-after: always !important;
-                break-after: page !important;
-              }
-              /* Remove cutting for last receipt */
-              .receipt:last-child::after {
-                content: "" !important;
-                page-break-after: avoid !important;
-                break-after: avoid !important;
-              }
-              /* Force page break after each receipt */
-              .receipt + .receipt {
-                page-break-before: always !important;
-                break-before: page !important;
-              }
-              /* Thermal printer optimized item display */
               .receipt div[style*="display:flex"] {
                 display: flex !important;
                 justify-content: space-between !important;
@@ -668,29 +719,22 @@ export default function Home() {
                 white-space: nowrap !important;
                 font-size: 10px !important;
               }
-              /* Prevent line breaks in item rows */
               .receipt div[style*="margin:5px 0"] {
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
                 margin: 2px 0 !important;
               }
-              /* Optimize headers for thermal printer */
               .receipt h1, .receipt h2, .receipt h3 {
                 font-size: 12px !important;
                 margin: 3px 0 !important;
                 font-weight: bold !important;
               }
-              /* Optimize text sizes for thermal printer */
               .receipt p, .receipt div {
                 font-size: 10px !important;
                 margin: 1px 0 !important;
               }
-              /* Ensure proper spacing for thermal printer */
               .receipt .item {
                 margin: 1px 0 !important;
                 padding: 1px 0 !important;
               }
-              /* Hide any background colors/gradients for thermal printing */
               .receipt * {
                 background: white !important;
                 color: black !important;
@@ -699,115 +743,31 @@ export default function Home() {
           </style>
         </head>
         <body>
-    `;
-
-    generatedSlips.forEach((slip, index) => {
-      const slipDate = new Date(slip.slip_date);
-      const formattedDate = slipDate.toLocaleDateString("en-GB");
-
-      const selectedTemplate = slipFormats.find((f) => f.id === selectedFormat);
-      if (!selectedTemplate) return;
-
-      // Items HTML - Ensure quantity is properly displayed
-      let itemsHtml = "";
-      slip.items.forEach((item) => {
-        itemsHtml += `
-          <div style="display:flex;justify-content:space-between;align-items:center;margin:5px 0;font-size:12px">
-            <span style="flex:1;text-align:left;">${item.fruit.name}</span>
-            <span style="flex:1;text-align:center;">${item.quantity} ${item.fruit.unit}</span>
-            <span style="flex:1;text-align:right;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs')}</span>
-          </div>
-        `;
-      });
-
-      const taxAmount = (
-        (slip.total_amount * (selectedTemplate.tax_rate || 0)) / 100
-      ).toFixed(2);
-
-      // Calculate grand total including tax
-      const grandTotal = slip.total_amount + parseFloat(taxAmount);
-
-      // Replace placeholders — strictly matching {{placeholder}}
-      let templateHtml = selectedTemplate.template_html
-        // Handle double curly braces (current format)
-        .replace(
-          /\{\{logo\}\}/g,
-          selectedTemplate.logo_data
-            ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="max-width: 60px; height: auto;">`
-            : ""
-        )
-        .replace(
-          /\{\{store_name\}\}/g,
-          selectedTemplate.store_name || selectedTemplate.name
-        )
-        .replace(/\{\{store_address\}\}/g, selectedTemplate.store_address || "")
-        .replace(/\{\{store_phone\}\}/g, selectedTemplate.store_phone || "")
-        .replace(/\{\{store_email\}\}/g, selectedTemplate.store_email || "")
-        .replace(/\{\{store_website\}\}/g, selectedTemplate.store_website || "")
-        .replace(/\{\{date\}\}/g, formattedDate)
-        .replace(/\{\{slip_number\}\}/g, slip.serial_number)
-        .replace(/\{\{items\}\}/g, selectedTemplate.category === 'international' ? '' : itemsHtml)
-        .replace(/\{\{total\}\}/g, slip.total_amount.toFixed(2))
-        .replace(/\{\{tax_rate\}\}/g, (selectedTemplate.tax_rate || 0).toString())
-        .replace(/\{\{tax_amount\}\}/g, taxAmount)
-        .replace(/\{\{grand_total\}\}/g, grandTotal.toFixed(2))
-        .replace(/\{\{currency_symbol\}\}/g, selectedTemplate.currency_symbol || 'Rs')
-        // Handle footer_text - if empty, remove the entire footer section
-        .replace(/\{\{footer_text\}\}/g, selectedTemplate.footer_text || "")
-        // Remove footer divs that contain only empty footer_text
-        .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, selectedTemplate.footer_text ? `<div>${selectedTemplate.footer_text}</div>` : "")
-        // Remove any remaining empty footer sections
-        .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, "");
-
-      printContent += `<div class="receipt">${templateHtml}</div>`;
-      
-      // Add explicit page break after each receipt (except the last one)
-      if (index < generatedSlips.length - 1) {
-        printContent += `
-          <div style="page-break-after: always; break-after: page; height: 0; margin: 0; padding: 0;"></div>
-          <div style="page-break-before: always; break-before: page; height: 0; margin: 0; padding: 0;"></div>
-          <!-- ESC/POS Cut Command -->
-          <div style="display: none;">\\f\\f\\f</div>
-        `;
-      }
-    });
-
-    printContent += `
+          <div class="receipt">${templateHtml}</div>
         </body>
       </html>
     `;
 
-    printWindow.document.write(printContent);
+    // Final cleanup of print content to remove any \f characters
+    const cleanPrintContent = printContent
+      .replace(/\\f/g, '')
+      .replace(/\f/g, '')
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r');
+
+    printWindow.document.write(cleanPrintContent);
     printWindow.document.close();
     
-    // Force page breaks for thermal printer
+    // Print and move to next receipt
     setTimeout(() => {
-      const receipts = printWindow.document.querySelectorAll('.receipt');
-      receipts.forEach((receipt, index) => {
-        if (index < receipts.length - 1) {
-          // Add explicit page break after each receipt
-          const receiptElement = receipt as HTMLElement;
-          receiptElement.style.pageBreakAfter = 'always';
-          receiptElement.style.breakAfter = 'page';
-          
-          // Add ESC/POS cut command
-          const cutDiv = printWindow.document.createElement('div');
-          cutDiv.style.pageBreakAfter = 'always';
-          cutDiv.style.breakAfter = 'page';
-          cutDiv.style.height = '0';
-          cutDiv.style.margin = '0';
-          cutDiv.style.padding = '0';
-          cutDiv.innerHTML = '\\f\\f\\f';
-          
-          if (receipt.parentNode) {
-            receipt.parentNode.insertBefore(cutDiv, receipt.nextSibling);
-          }
-        }
-      });
-      
       printWindow.focus();
       printWindow.print();
       printWindow.close();
+      
+      // Wait a bit then print next receipt
+      setTimeout(() => {
+        printReceiptsIndividually(index + 1);
+      }, 500);
     }, 100);
   };
 
