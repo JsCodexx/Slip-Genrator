@@ -7,16 +7,16 @@
     <style>
         body {
             font-family: 'Courier New', monospace;
-            font-size: 14px;
+            font-size: 16px;
             margin: 0;
             padding: 20px;
             background-color: #f5f5f5;
         }
         .receipt {
             width: 80mm;
-            margin: 0 auto;
+            margin: 0;
             background: white;
-            padding: 8mm;
+            padding: 2mm 4mm 2mm 2mm;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             /* NO page-break-inside: avoid - This is the key fix! */
         }
@@ -25,8 +25,8 @@
             margin-bottom: 16px;
         }
         .logo-circle {
-            width: 300px;
-            height: 300px;
+            width: 170px;
+            height: 170px;
             border: 2px solid #000;
             border-radius: 50%;
             margin: 0 auto 8px;
@@ -34,24 +34,24 @@
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 16px;
         }
         .store-info {
             text-align: center;
             margin-bottom: 16px;
         }
         .store-name {
-            font-size: 16px;
+            font-size: 20px;
             font-weight: bold;
             margin: 0 0 6px 0;
         }
         .store-details {
-            font-size: 13px;
+            font-size: 18px;
             margin: 3px 0;
         }
         .transaction-info {
             margin: 10px 0;
-            font-size: 13px;
+            font-size: 18px;
         }
         .transaction-row {
             display: flex;
@@ -64,14 +64,14 @@
         .items-table {
             width: 100%;
             margin: 12px 0;
-            font-size: 12px;
+            font-size: 16px;
             border-collapse: collapse;
         }
         .items-table th {
             text-align: left;
             padding: 6px 3px;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 16px;
         }
         .items-table td {
             padding: 4px 3px;
@@ -81,7 +81,7 @@
         }
         .summary-section {
             margin: 12px 0;
-            font-size: 13px;
+            font-size: 18px;
         }
         .summary-line span:first-child {
             font-weight: bold;
@@ -94,12 +94,12 @@
         }
         .payment-info {
             margin: 12px 0;
-            font-size: 13px;
+            font-size: 18px;
         }
         .footer {
             text-align: center;
             margin-top: 16px;
-            font-size: 13px;
+            font-size: 18px;
             font-weight: bold;
         }
         hr {
@@ -116,6 +116,9 @@
                 background: white !important;
             }
             .receipt {
+                margin: 0 !important;
+                padding: 2mm 4mm 2mm 2mm !important;
+                width: 80mm !important;
                 /* NO page-break-inside: avoid - This prevents mid-receipt cutting */
             }
         }
@@ -128,8 +131,8 @@
             <div class="logo-circle">
                 🍦 LOGO
             </div>
-            <div style="font-size: 8px; font-weight: bold;">Sweet Creme</div>
-            <div style="font-size: 7px;">Premium Soft Serve</div>
+            <div style="font-size: 20px; font-weight: bold;">Sweet Creme</div>
+            <div style="font-size: 18px;">Premium Soft Serve</div>
         </div>
 
         <!-- Store Information -->
