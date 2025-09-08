@@ -4,6 +4,10 @@
 -- This migration adds the Sweet Creme Premium Soft Serve template
 -- with improved styling: bigger logo, bold transaction details, minimal lines
 
+-- Delete existing Sweet Creme template if it exists
+DELETE FROM public.slip_formats WHERE name = 'Sweet Creme Premium Soft Serve';
+
+-- Insert the new Sweet Creme template
 INSERT INTO public.slip_formats (
   name,
   description,
@@ -25,7 +29,7 @@ INSERT INTO public.slip_formats (
   
   <!-- Logo Section -->
   <div style="text-align:center;margin-bottom:16px;">
-    <div style="width:80px;height:80px;border:2px solid #000;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;">
+    <div style="width:300px;height:300px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:14px;">
       {{logo}}
     </div>
     <div style="font-size:8px;font-weight:bold;">Sweet Creme</div>
@@ -39,17 +43,20 @@ INSERT INTO public.slip_formats (
     <div style="font-size:13px;margin:3px 0;">03-111-666-656</div>
   </div>
 
-  <hr style="border:none;border-top:1px solid #000;margin:8px 0;">
 
   <!-- Transaction Details -->
-  <div style="display:flex;justify-content:space-between;margin:10px 0;font-size:13px;">
-    <span><span style="font-weight:bold;">Bill #:</span> {{slip_number}}</span>
-    <span><span style="font-weight:bold;">Date:</span> {{date}}</span>
+  <div style="margin:10px 0;font-size:13px;">
+    <div style="display:flex;justify-content:space-between;margin:5px 0;">
+      <span><span style="font-weight:bold;">Bill #:</span> {{slip_number}}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin:5px 0;">
+      <span><span style="font-weight:bold;">Date:</span> {{date}}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin:5px 0;">
+      <span><span style="font-weight:bold;">Time:</span> {{time}}</span>
+    </div>
   </div>
-  <div style="display:flex;justify-content:space-between;margin:10px 0;font-size:13px;">
-    <span><span style="font-weight:bold;">Time:</span> {{time}}</span>
-    <span></span>
-  </div>
+
 
   <hr style="border:none;border-top:1px dotted #000;margin:8px 0;">
 
@@ -69,7 +76,6 @@ INSERT INTO public.slip_formats (
     </tbody>
   </table>
 
-  <hr style="border:none;border-top:1px dotted #000;margin:8px 0;">
 
   <!-- Summary Section -->
   <div style="margin:12px 0;font-size:13px;">
@@ -81,27 +87,24 @@ INSERT INTO public.slip_formats (
       <span style="font-weight:bold;">Net Total:</span>
       <span>{{net_total}}</span>
     </div>
-    <div style="display:flex;justify-content:space-between;margin:5px 0;font-weight:bold;border-top:1px solid #000;padding-top:6px;margin-top:8px;">
-      <span>Total Amount:</span>
+    <div style="display:flex;justify-content:space-between;margin:5px 0;">
+      <span style="font-weight:bold;">Total Amount:</span>
       <span>{{total_amount}}</span>
     </div>
   </div>
 
-  <!-- Payment Information -->
-  <div style="margin:12px 0;font-size:13px;">
-    <div style="display:flex;justify-content:space-between;margin:5px 0;">
-      <span style="font-weight:bold;">Credit Card Payment:</span>
-      <span>{{payment_amount}}</span>
-    </div>
+ <hr style="border:none;border-top:1px dotted #000;margin:8px 0;">
+  <!-- Footer -->
+    <div style="margin:12px 0;font-size:13px;">
+<div style="display:flex;justify-content:space-between;margin:10px 0;">
+  <span style="font-weight:bold;">Credit Card Payment:</span>
+  <span style="font-weight:bold;">{{payment_amount}}</span>
+</div>
     <div style="display:flex;justify-content:space-between;margin:5px 0;">
       <span style="font-weight:bold;">Token #:</span>
       <span>{{token_number}}</span>
     </div>
   </div>
-
-  <hr style="border:none;border-top:1px dotted #000;margin:8px 0;">
-
-  <!-- Footer -->
   <div style="text-align:center;margin-top:16px;font-size:13px;font-weight:bold;">
     THANK YOU FOR YOUR VISIT
   </div>

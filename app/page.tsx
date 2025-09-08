@@ -157,7 +157,7 @@ export default function Home() {
         setUser(session.user);
         // Only load formats if not already loaded to prevent resetting selected format
         if (!formatsLoaded) {
-          loadSlipFormats();
+        loadSlipFormats();
         }
         loadFruits("all"); // Load all categories initially
         
@@ -604,79 +604,38 @@ export default function Home() {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    let printContent = `
-      <html>
-        <head>
-          <title>Generated Receipts</title>
-          <style>
-            @media print {
+      let printContent = `
+        <html>
+          <head>
+            <title>Generated Receipts</title>
+            <style>
+          @media print {
               body {
                 margin: 0 !important;
                 padding: 0 !important;
                 background: white !important;
               }
+              /* Only apply basic print styles, let templates control their own design */
               .receipt {
-                width: 80mm !important;
-                max-width: 80mm !important;
-                margin: 0 auto !important;
-                padding: 4mm !important;
-                font-family: "Courier New", monospace !important;
-                font-size: 10px !important;
-                line-height: 1.2 !important;
-                background: white !important;
-                color: black !important;
-                box-shadow: none !important;
-                border: none !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-              }
-              .receipt div[style*="display:flex"] {
-                display: flex !important;
-                justify-content: space-between !important;
-                margin: 2px 0 !important;
-                font-size: 10px !important;
-                line-height: 1.1 !important;
-              }
-              .receipt div[style*="display:flex"] span {
-                display: inline-block !important;
-                white-space: nowrap !important;
-                font-size: 10px !important;
-              }
-              .receipt div[style*="margin:5px 0"] {
-                margin: 2px 0 !important;
-              }
-              .receipt h1, .receipt h2, .receipt h3 {
-                font-size: 12px !important;
-                margin: 3px 0 !important;
-                font-weight: bold !important;
-              }
-              .receipt p, .receipt div {
-                font-size: 10px !important;
-                margin: 1px 0 !important;
-              }
-              .receipt .item {
-                margin: 1px 0 !important;
-                padding: 1px 0 !important;
-              }
-              .receipt * {
-                background: white !important;
-                color: black !important;
-              }
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
             }
-          </style>
-        </head>
-        <body>
-    `;
+              /* Remove any global font/color overrides - let templates control their own styling */
+          }
+            </style>
+          </head>
+          <body>
+      `;
 
     generatedSlips.forEach((slip, index) => {
-      const slipDate = new Date(slip.slip_date);
-      const formattedDate = slipDate.toLocaleDateString("en-GB");
+        const slipDate = new Date(slip.slip_date);
+        const formattedDate = slipDate.toLocaleDateString("en-GB");
 
       const selectedTemplate = slipFormats.find((f) => f.id === selectedFormat);
       if (!selectedTemplate) return;
 
       // Items HTML - Generate table rows for Sweet Creme template
-      let itemsHtml = "";
+        let itemsHtml = "";
       slip.items.forEach((item, index) => {
         // Check if template has table structure (Sweet Creme)
         if (selectedTemplate.template_html.includes('<tbody>')) {
@@ -692,14 +651,14 @@ export default function Home() {
         } else {
           // Default format for other templates
           itemsHtml += `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin:5px 0;font-size:12px">
-              <span style="flex:1;text-align:left;">${item.fruit.name}</span>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:5px 0;font-size:12px">
+    <span style="flex:1;text-align:left;">${item.fruit.name}</span>
               <span style="flex:1;text-align:center;">${item.quantity} ${item.fruit.unit}</span>
               <span style="flex:1;text-align:right;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</span>
             </div>
           `;
         }
-      });
+        });
 
       const taxAmount = (
         (slip.total_amount * (selectedTemplate.tax_rate || 0)) / 100
@@ -708,9 +667,9 @@ export default function Home() {
       const grandTotal = slip.total_amount + parseFloat(taxAmount);
 
       // Universal placeholder processing - works for ALL templates
-      let templateHtml = selectedTemplate.template_html
+        let templateHtml = selectedTemplate.template_html
         // === CORE PLACEHOLDERS ===
-        .replace(/\{\{logo\}\}/g, selectedTemplate.logo_data ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="max-width: 60px; height: auto;">` : "")
+        .replace(/\{\{logo\}\}/g, selectedTemplate.logo_data ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain; display: block;">` : "")
         .replace(/\{\{store_name\}\}/g, selectedTemplate.store_name || selectedTemplate.name)
         .replace(/\{\{store_address\}\}/g, selectedTemplate.store_address || "Fresh Produce & Quality Goods")
         .replace(/\{\{store_phone\}\}/g, selectedTemplate.store_phone || "+1234567890")
@@ -768,7 +727,7 @@ export default function Home() {
         .replace(/\{\{item2_price\}\}/g, "2.50")
         .replace(/\{\{item2_qty\}\}/g, "1")
         .replace(/\{\{item2_total\}\}/g, "2.50")
-        
+
         // === FUTURE PLACEHOLDERS ===
         .replace(/\{\{barcode\}\}/g, "123456789012")
         .replace(/\{\{qr_code\}\}/g, "QR_CODE_DATA")
@@ -809,7 +768,7 @@ export default function Home() {
       .replace(/\\r/g, '\r');
 
     printWindow.document.write(cleanPrintContent);
-    printWindow.document.close();
+      printWindow.document.close();
     
     // Single print job
     setTimeout(() => {
@@ -1535,22 +1494,22 @@ export default function Home() {
                     handlebarsItemsHtml = itemsHtml; // Same format for both
                   } else {
                     // Standard format for other templates
-                    itemsHtml += `
-                      <div class="item">
-                        <div class="name">${item.fruit.name}</div>
-                        <div class="price">${item.total_price.toFixed(2)}</div>
-                      </div>
-                    `;
+                  itemsHtml += `
+                    <div class="item">
+                      <div class="name">${item.fruit.name}</div>
+                      <div class="price">${item.total_price.toFixed(2)}</div>
+                    </div>
+                  `;
 
-                    // Handlebars format - replace placeholders in the loop structure
-                    const itemTemplate = `
-                      <div style="display:flex;justify-content:space-between;margin:5px 0;font-size:12px">
-                        <span>${item.fruit.name}</span>
-                        <span>${item.quantity} ${item.fruit.unit}</span>
+                                     // Handlebars format - replace placeholders in the loop structure
+                   const itemTemplate = `
+  <div style="display:flex;justify-content:space-between;margin:5px 0;font-size:12px">
+    <span>${item.fruit.name}</span>
+    <span>${item.quantity} ${item.fruit.unit}</span>
                         <span>${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</span>
-                      </div>
-                    `;
-                    handlebarsItemsHtml += itemTemplate;
+                    </div>
+                  `;
+                  handlebarsItemsHtml += itemTemplate;
                   }
                 });
 
@@ -1568,7 +1527,7 @@ export default function Home() {
                 // Universal placeholder processing - works for ALL templates
                 let templateHtml = selectedTemplate.template_html
                   // === CORE PLACEHOLDERS ===
-                  .replace(/\{\{logo\}\}/g, selectedTemplate.logo_data ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="max-width: 60px; height: auto;">` : "")
+                  .replace(/\{\{logo\}\}/g, selectedTemplate.logo_data ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain; display: block;">` : "")
                   .replace(/\{\{store_name\}\}/g, selectedTemplate.store_name || selectedTemplate.name)
                   .replace(/\{\{store_address\}\}/g, selectedTemplate.store_address || "Fresh Produce & Quality Goods")
                   .replace(/\{\{store_phone\}\}/g, selectedTemplate.store_phone || "+1234567890")
