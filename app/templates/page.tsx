@@ -1035,7 +1035,7 @@ export default function TemplatesPage() {
               </button>
             </div>
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              <div className="prose dark:prose-invert max-w-none">
+              <div className="max-w-none">
                 <div dangerouslySetInnerHTML={{ __html: selectedFormat.template_html }} />
               </div>
             </div>

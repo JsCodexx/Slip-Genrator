@@ -49,10 +49,13 @@
             margin: 3px 0;
         }
         .transaction-info {
-            display: flex;
-            justify-content: space-between;
             margin: 10px 0;
             font-size: 13px;
+        }
+        .transaction-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
         }
         .transaction-info .label {
             font-weight: bold;
@@ -128,12 +131,15 @@
 
         <!-- Transaction Details -->
         <div class="transaction-info">
-            <span><span class="label">Bill #:</span> {{slip_number}}</span>
-            <span><span class="label">Date:</span> {{date}}</span>
-        </div>
-        <div class="transaction-info">
-            <span><span class="label">Time:</span> {{time}}</span>
-            <span></span>
+            <div class="transaction-row">
+                <span><span class="label">Bill #:</span> {{slip_number}}</span>
+            </div>
+            <div class="transaction-row">
+                <span><span class="label">Date:</span> {{date}}</span>
+            </div>
+            <div class="transaction-row">
+                <span><span class="label">Time:</span> {{time}}</span>
+            </div>
         </div>
 
         <hr style="border:none;border-top:1px dotted #000;margin:8px 0;">

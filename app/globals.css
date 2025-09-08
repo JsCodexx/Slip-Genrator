@@ -1125,54 +1125,10 @@ body {
     padding: 0 !important;
   }
   
+  /* Only apply basic print styles, let templates control their own design */
   .receipt {
-    width: 80mm !important;
-    max-width: 80mm !important;
-    margin: 0 auto !important;
-    padding: 4mm !important;
-    box-shadow: none !important;
-    border: none !important;
-    background: white !important;
-    color: black !important;
-    font-family: "Courier New", monospace !important;
-    font-size: 10px !important;
-    line-height: 1.2 !important;
     page-break-inside: avoid !important;
   }
   
-  /* Force all text to be black and backgrounds white for thermal printing */
-  .receipt * {
-    background: white !important;
-    color: black !important;
-  }
-  
-  /* Optimize headers for thermal printer */
-  .receipt h1, .receipt h2, .receipt h3 {
-    font-size: 12px !important;
-    margin: 2px 0 !important;
-    font-weight: bold !important;
-  }
-  
-  /* Optimize item display for thermal printer */
-  .receipt .item {
-    margin: 1px 0 !important;
-    padding: 1px 0 !important;
-    font-size: 10px !important;
-  }
-  
-  /* Ensure proper spacing */
-  .receipt div[style*="display:flex"] {
-    margin: 1px 0 !important;
-    font-size: 10px !important;
-  }
-  
-  /* Remove any gradients or colors */
-  .receipt.modern,
-  .receipt.premium,
-  .receipt.casual,
-  .receipt.elegant,
-  .receipt.colorful {
-    background: white !important;
-    color: black !important;
-  }
+  /* Remove any global font/color overrides - let templates control their own styling */
 }
