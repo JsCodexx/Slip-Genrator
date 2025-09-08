@@ -29,7 +29,6 @@ body {
   border-radius: 6px;
   border: 1px solid var(--border);
   margin: 10px auto;
-  page-break-inside: avoid;
   font-size: 10px;
   line-height: 1.2;
 }
@@ -1127,7 +1126,7 @@ body {
   
   /* Only apply basic print styles, let templates control their own design */
   .receipt {
-    page-break-inside: avoid !important;
+    /* Remove page-break-inside: avoid for thermal printers */
   }
   
   /* Remove any global font/color overrides - let templates control their own styling */

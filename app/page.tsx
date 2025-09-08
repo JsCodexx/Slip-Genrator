@@ -617,9 +617,8 @@ export default function Home() {
               }
               /* Only apply basic print styles, let templates control their own design */
               .receipt {
-              page-break-inside: avoid !important;
-              break-inside: avoid !important;
-            }
+                /* Remove page-break-inside: avoid for thermal printers */
+              }
               /* Remove any global font/color overrides - let templates control their own styling */
           }
             </style>

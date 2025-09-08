@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thermal Printer Test - Sweet Creme Template</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .receipt {
+            width: 80mm;
+            margin: 0 auto;
+            background: white;
+            padding: 8mm;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            /* NO page-break-inside: avoid - This is the key fix! */
+        }
+        .logo-section {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .logo-circle {
+            width: 300px;
+            height: 300px;
+            border: 2px solid #000;
+            border-radius: 50%;
+            margin: 0 auto 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .store-info {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+        .store-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 0 0 6px 0;
+        }
+        .store-details {
+            font-size: 13px;
+            margin: 3px 0;
+        }
+        .transaction-info {
+            margin: 10px 0;
+            font-size: 13px;
+        }
+        .transaction-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        .transaction-info .label {
+            font-weight: bold;
+        }
+        .items-table {
+            width: 100%;
+            margin: 12px 0;
+            font-size: 12px;
+            border-collapse: collapse;
+        }
+        .items-table th {
+            text-align: left;
+            padding: 6px 3px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .items-table td {
+            padding: 4px 3px;
+            vertical-align: top;
+            word-wrap: break-word;
+            max-width: 0;
+        }
+        .summary-section {
+            margin: 12px 0;
+            font-size: 13px;
+        }
+        .summary-line span:first-child {
+            font-weight: bold;
+        }
+        .total-line {
+            font-weight: bold;
+            border-top: 1px solid #000;
+            padding-top: 6px;
+            margin-top: 8px;
+        }
+        .payment-info {
+            margin: 12px 0;
+            font-size: 13px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #000;
+            margin: 8px 0;
+        }
+        
+        /* Print-specific styles - NO page-break rules */
+        @media print {
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+            }
+            .receipt {
+                /* NO page-break-inside: avoid - This prevents mid-receipt cutting */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt">
+        <!-- Logo Section -->
+        <div class="logo-section">
+            <div class="logo-circle">
+                🍦 LOGO
+            </div>
+            <div style="font-size: 8px; font-weight: bold;">Sweet Creme</div>
+            <div style="font-size: 7px;">Premium Soft Serve</div>
+        </div>
+
+        <!-- Store Information -->
+        <div class="store-info">
+            <div class="store-name">Premium Soft Serve</div>
+            <div class="store-details">SS Tower Shopping Mall, Bahawalpur</div>
+            <div class="store-details">03-111-666-656</div>
+        </div>
+
+        <hr>
+
+        <!-- Transaction Details -->
+        <div class="transaction-info">
+            <div class="transaction-row">
+                <span><span class="label">Bill #:</span> 79961618647</span>
+            </div>
+            <div class="transaction-row">
+                <span><span class="label">Date:</span> 27/08/2025</span>
+            </div>
+            <div class="transaction-row">
+                <span><span class="label">Time:</span> 5:04:57 AM</span>
+            </div>
+        </div>
+
+        <hr style="border:none;border-top:1px dotted #000;margin:8px 0;">
+
+        <!-- Items Table -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 8%; text-align: left;">#</th>
+                    <th style="width: 35%; text-align: left; word-wrap: break-word;">Item Name</th>
+                    <th style="width: 25%; text-align: left;">Rate</th>
+                    <th style="width: 12%; text-align: center;">Qty</th>
+                    <th style="width: 20%; text-align: right;">Amou</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1</td>
+                    <td>Vanilla Soft Serve</td>
+                    <td>150</td>
+                    <td>2</td>
+                    <td>300</td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>Chocolate Soft Serve</td>
+                    <td>150</td>
+                    <td>1</td>
+                    <td>150</td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>Strawberry Soft Serve</td>
+                    <td>150</td>
+                    <td>1</td>
+                    <td>150</td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>Mint Chocolate Chip</td>
+                    <td>180</td>
+                    <td>1</td>
+                    <td>180</td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>Cookies & Cream</td>
+                    <td>170</td>
+                    <td>2</td>
+                    <td>340</td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>Rocky Road</td>
+                    <td>190</td>
+                    <td>1</td>
+                    <td>190</td>
+                </tr>
+                <tr>
+                    <td>7</td>
+                    <td>Pistachio Delight</td>
+                    <td>200</td>
+                    <td>1</td>
+                    <td>200</td>
+                </tr>
+                <tr>
+                    <td>8</td>
+                    <td>Butter Pecan</td>
+                    <td>185</td>
+                    <td>2</td>
+                    <td>370</td>
+                </tr>
+                <tr>
+                    <td>9</td>
+                    <td>Neapolitan</td>
+                    <td>160</td>
+                    <td>1</td>
+                    <td>160</td>
+                </tr>
+                <tr>
+                    <td>10</td>
+                    <td>Caramel Swirl</td>
+                    <td>175</td>
+                    <td>1</td>
+                    <td>175</td>
+                </tr>
+                <tr>
+                    <td>11</td>
+                    <td>Chocolate Fudge</td>
+                    <td>195</td>
+                    <td>1</td>
+                    <td>195</td>
+                </tr>
+                <tr>
+                    <td>12</td>
+                    <td>Strawberry Cheesecake</td>
+                    <td>210</td>
+                    <td>1</td>
+                    <td>210</td>
+                </tr>
+                <tr>
+                    <td>13</td>
+                    <td>Tiramisu</td>
+                    <td>220</td>
+                    <td>1</td>
+                    <td>220</td>
+                </tr>
+                <tr>
+                    <td>14</td>
+                    <td>Red Velvet</td>
+                    <td>205</td>
+                    <td>1</td>
+                    <td>205</td>
+                </tr>
+                <tr>
+                    <td>15</td>
+                    <td>Oreo Cookie</td>
+                    <td>180</td>
+                    <td>2</td>
+                    <td>360</td>
+                </tr>
+                <tr>
+                    <td>16</td>
+                    <td>Birthday Cake</td>
+                    <td>195</td>
+                    <td>1</td>
+                    <td>195</td>
+                </tr>
+                <tr>
+                    <td>17</td>
+                    <td>Peanut Butter Cup</td>
+                    <td>190</td>
+                    <td>1</td>
+                    <td>190</td>
+                </tr>
+                <tr>
+                    <td>18</td>
+                    <td>Mango Tango</td>
+                    <td>170</td>
+                    <td>1</td>
+                    <td>170</td>
+                </tr>
+                <tr>
+                    <td>19</td>
+                    <td>Pistachio Almond</td>
+                    <td>200</td>
+                    <td>1</td>
+                    <td>200</td>
+                </tr>
+                <tr>
+                    <td>20</td>
+                    <td>Triple Chocolate</td>
+                    <td>210</td>
+                    <td>1</td>
+                    <td>210</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <hr style="border:none;border-top:1px dotted #000;margin:8px 0;">
+
+        <!-- Summary Section -->
+        <div class="summary-section">
+            <div class="summary-line">
+                <span>Gross Amt:</span>
+                <span>3,750</span>
+            </div>
+            <div class="summary-line">
+                <span>Net Total:</span>
+                <span>3,750</span>
+            </div>
+            <div class="summary-line total-line">
+                <span>Total Amount:</span>
+                <span>3,750</span>
+            </div>
+        </div>
+
+        <!-- Payment Information -->
+        <div class="payment-info">
+            <div class="summary-line">
+                <span>Credit Card Payment:</span>
+                <span>3,750</span>
+            </div>
+            <div class="summary-line">
+                <span>Token #:</span>
+                <span>12345</span>
+            </div>
+        </div>
+
+        <hr style="border:none;border-top:1px dotted #000;margin:8px 0;">
+
+        <!-- Footer -->
+        <div class="footer">
+            THANK YOU FOR YOUR VISIT
+        </div>
+    </div>
+
+    <div style="margin-top: 20px; text-align: center;">
+        <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            🖨️ Test Print Preview
+        </button>
+        <p style="margin-top: 10px; font-size: 12px; color: #666;">
+            Click the button above to test print preview. The receipt should appear as ONE continuous page without page breaks.
+        </p>
+    </div>
+</body>
+</html>
