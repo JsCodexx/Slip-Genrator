@@ -70,9 +70,26 @@ export function convertPriceRange(
  * Formats a price with the appropriate currency symbol
  * @param amount - The amount to format
  * @param currency - Currency symbol
+ * @param showSymbol - Whether to show currency symbol (default: true)
  * @returns Formatted price string
  */
-export function formatPrice(amount: number, currency: string): string {
+export function formatPrice(amount: number, currency: string, showSymbol: boolean = true): string {
+  // If currency symbol should be hidden, return only the number
+  if (!showSymbol) {
+    // For currencies that typically show 2 decimal places
+    if (['$', '€', '£', 'AED', 'SAR'].includes(currency)) {
+      return amount.toFixed(2);
+    }
+    
+    // For currencies that typically show whole numbers
+    if (['¥', '₽'].includes(currency)) {
+      return Math.round(amount).toString();
+    }
+    
+    // For Indian Rupees and similar
+    return amount.toFixed(2);
+  }
+
   // For currencies that typically show 2 decimal places
   if (['$', '€', '£', 'AED', 'SAR'].includes(currency)) {
     return `${currency}${amount.toFixed(2)}`;

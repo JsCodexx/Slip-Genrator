@@ -122,6 +122,9 @@ export default function Home() {
   const [dateMode, setDateMode] = useState<"range" | "exact">("range");
   const [exactDate, setExactDate] = useState<string>("");
   const [formatsLoaded, setFormatsLoaded] = useState<boolean>(false);
+  
+  // Currency symbol display control
+  const [showCurrencySymbol, setShowCurrencySymbol] = useState<boolean>(true);
 
   useEffect(() => {
     const getUser = async () => {
@@ -672,16 +675,30 @@ export default function Home() {
       const selectedTemplate = slipFormats.find((f) => f.id === selectedFormat);
       if (!selectedTemplate) return;
 
-      // Items HTML
+      // Items HTML - Generate table rows for Sweet Creme template
       let itemsHtml = "";
-      slip.items.forEach((item) => {
-        itemsHtml += `
-          <div style="display:flex;justify-content:space-between;align-items:center;margin:5px 0;font-size:12px">
-            <span style="flex:1;text-align:left;">${item.fruit.name}</span>
-            <span style="flex:1;text-align:center;">${item.quantity} ${item.fruit.unit}</span>
-            <span style="flex:1;text-align:right;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs')}</span>
-          </div>
-        `;
+      slip.items.forEach((item, index) => {
+        // Check if template has table structure (Sweet Creme)
+        if (selectedTemplate.template_html.includes('<tbody>')) {
+          itemsHtml += `
+            <tr>
+              <td style="width:8%;text-align:left;padding:4px 3px;vertical-align:top;">${index + 1}</td>
+              <td style="width:35%;text-align:left;padding:4px 3px;vertical-align:top;word-wrap:break-word;">${item.fruit.name}</td>
+              <td style="width:25%;text-align:left;padding:4px 3px;vertical-align:top;">${item.fruit.unit}</td>
+              <td style="width:12%;text-align:center;padding:4px 3px;vertical-align:top;">${item.quantity}</td>
+              <td style="width:20%;text-align:right;padding:4px 3px;vertical-align:top;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</td>
+            </tr>
+          `;
+        } else {
+          // Default format for other templates
+          itemsHtml += `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:5px 0;font-size:12px">
+              <span style="flex:1;text-align:left;">${item.fruit.name}</span>
+              <span style="flex:1;text-align:center;">${item.quantity} ${item.fruit.unit}</span>
+              <span style="flex:1;text-align:right;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</span>
+            </div>
+          `;
+        }
       });
 
       const taxAmount = (
@@ -690,31 +707,73 @@ export default function Home() {
 
       const grandTotal = slip.total_amount + parseFloat(taxAmount);
 
-      // Replace placeholders and clean any potential \f characters
+      // Universal placeholder processing - works for ALL templates
       let templateHtml = selectedTemplate.template_html
-        .replace(
-          /\{\{logo\}\}/g,
-          selectedTemplate.logo_data
-            ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="max-width: 60px; height: auto;">`
-            : ""
-        )
-        .replace(
-          /\{\{store_name\}\}/g,
-          selectedTemplate.store_name || selectedTemplate.name
-        )
-        .replace(/\{\{store_address\}\}/g, selectedTemplate.store_address || "")
-        .replace(/\{\{store_phone\}\}/g, selectedTemplate.store_phone || "")
+        // === CORE PLACEHOLDERS ===
+        .replace(/\{\{logo\}\}/g, selectedTemplate.logo_data ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="max-width: 60px; height: auto;">` : "")
+        .replace(/\{\{store_name\}\}/g, selectedTemplate.store_name || selectedTemplate.name)
+        .replace(/\{\{store_address\}\}/g, selectedTemplate.store_address || "Fresh Produce & Quality Goods")
+        .replace(/\{\{store_phone\}\}/g, selectedTemplate.store_phone || "+1234567890")
         .replace(/\{\{store_email\}\}/g, selectedTemplate.store_email || "")
         .replace(/\{\{store_website\}\}/g, selectedTemplate.store_website || "")
+        
+        // === TRANSACTION PLACEHOLDERS ===
         .replace(/\{\{date\}\}/g, formattedDate)
+        .replace(/\{\{time\}\}/g, new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' }))
         .replace(/\{\{slip_number\}\}/g, slip.serial_number)
+        
+        // === ITEMS PLACEHOLDERS ===
         .replace(/\{\{items\}\}/g, selectedTemplate.category === 'international' ? '' : itemsHtml)
+        
+        // === AMOUNT PLACEHOLDERS ===
         .replace(/\{\{total\}\}/g, slip.total_amount.toFixed(2))
+        .replace(/\{\{grand_total\}\}/g, grandTotal.toFixed(2))
+        .replace(/\{\{subtotal\}\}/g, slip.total_amount.toFixed(2))
+        .replace(/\{\{gross_amount\}\}/g, slip.total_amount.toFixed(0))
+        .replace(/\{\{net_total\}\}/g, slip.total_amount.toFixed(0))
+        .replace(/\{\{total_amount\}\}/g, grandTotal.toFixed(0))
+        
+        // === TAX PLACEHOLDERS ===
         .replace(/\{\{tax_rate\}\}/g, (selectedTemplate.tax_rate || 0).toString())
         .replace(/\{\{tax_amount\}\}/g, taxAmount)
-        .replace(/\{\{grand_total\}\}/g, grandTotal.toFixed(2))
+        
+        // === PAYMENT PLACEHOLDERS ===
+        .replace(/\{\{payment_amount\}\}/g, grandTotal.toFixed(0))
+        .replace(/\{\{cash_amount\}\}/g, (grandTotal + 3).toFixed(2))
+        .replace(/\{\{change_amount\}\}/g, "3.00")
+        .replace(/\{\{token_number\}\}/g, Math.floor(Math.random() * 1000).toString())
+        
+        // === STAFF PLACEHOLDERS ===
+        .replace(/\{\{cashier_name\}\}/g, "CASHIER")
+        .replace(/\{\{counter\}\}/g, "COUNTER-1")
+        
+        // === INTERNATIONAL PLACEHOLDERS ===
+        .replace(/\{\{trn\}\}/g, "100071695100003")
+        .replace(/\{\{invoice_number\}\}/g, "01888103")
+        
+        // === CURRENCY PLACEHOLDERS ===
         .replace(/\{\{currency_symbol\}\}/g, selectedTemplate.currency_symbol || 'Rs')
+        
+        // === FOOTER PLACEHOLDERS ===
         .replace(/\{\{footer_text\}\}/g, selectedTemplate.footer_text || "")
+        
+        // === STATISTICS PLACEHOLDERS ===
+        .replace(/\{\{items_count\}\}/g, slip.items.length.toString())
+        .replace(/\{\{total_quantity\}\}/g, slip.items.reduce((sum, item) => sum + item.quantity, 0).toString())
+        
+        // === HARDCODED ITEM PLACEHOLDERS ===
+        .replace(/\{\{item1_price\}\}/g, "4.50")
+        .replace(/\{\{item1_qty\}\}/g, "1")
+        .replace(/\{\{item1_total\}\}/g, "4.50")
+        .replace(/\{\{item2_price\}\}/g, "2.50")
+        .replace(/\{\{item2_qty\}\}/g, "1")
+        .replace(/\{\{item2_total\}\}/g, "2.50")
+        
+        // === FUTURE PLACEHOLDERS ===
+        .replace(/\{\{barcode\}\}/g, "123456789012")
+        .replace(/\{\{qr_code\}\}/g, "QR_CODE_DATA")
+        .replace(/\{\{loyalty_points\}\}/g, "150")
+        .replace(/\{\{discount_amount\}\}/g, "0.00")
         .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, selectedTemplate.footer_text ? `<div>${selectedTemplate.footer_text}</div>` : "")
         .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, "")
         // Clean any potential \f characters
@@ -1037,6 +1096,23 @@ export default function Home() {
               </label>
               <p className="text-xs text-gray-500 mt-1">
                 When checked: Pieces (1-20), KG (1-7), Glasses (1-20), etc.
+              </p>
+            </div>
+
+            <div>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={showCurrencySymbol}
+                  onChange={(e) => setShowCurrencySymbol(e.target.checked)}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Show currency symbol (Rs, $, £, etc.)
+                </span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                When checked: Shows currency symbol with amounts. When unchecked: Shows only numbers.
               </p>
             </div>
           
@@ -1443,25 +1519,39 @@ export default function Home() {
                 let itemsHtml = "";
                 let handlebarsItemsHtml = "";
 
-                slip.items.forEach((item) => {
-                  // Standard format
-                  itemsHtml += `
-                    <div class="item">
-                      <div class="name">${item.fruit.name}</div>
-                      <div class="price">${item.total_price.toFixed(2)}</div>
-                    </div>
-                  `;
+                slip.items.forEach((item, index) => {
+                  // Check if template has table structure (Sweet Creme)
+                  if (selectedTemplate.template_html.includes('<tbody>')) {
+                    // Table format for Sweet Creme template
+                    itemsHtml += `
+                      <tr>
+                        <td style="width:8%;text-align:left;padding:4px 3px;vertical-align:top;">${index + 1}</td>
+                        <td style="width:35%;text-align:left;padding:4px 3px;vertical-align:top;word-wrap:break-word;">${item.fruit.name}</td>
+                        <td style="width:25%;text-align:left;padding:4px 3px;vertical-align:top;">${item.fruit.unit}</td>
+                        <td style="width:12%;text-align:center;padding:4px 3px;vertical-align:top;">${item.quantity}</td>
+                        <td style="width:20%;text-align:right;padding:4px 3px;vertical-align:top;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</td>
+                      </tr>
+                    `;
+                    handlebarsItemsHtml = itemsHtml; // Same format for both
+                  } else {
+                    // Standard format for other templates
+                    itemsHtml += `
+                      <div class="item">
+                        <div class="name">${item.fruit.name}</div>
+                        <div class="price">${item.total_price.toFixed(2)}</div>
+                      </div>
+                    `;
 
-                                     // Handlebars format - replace placeholders in the loop structure
-                   const itemTemplate = `
-  <div style="display:flex;justify-content:space-between;margin:5px 0;font-size:12px">
-    <span>${item.fruit.name}</span>
-    <span>${item.quantity} ${item.fruit.unit}</span>
-    <span>${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs')}</span>
-                    </div>
-                  `;
-
-                  handlebarsItemsHtml += itemTemplate;
+                    // Handlebars format - replace placeholders in the loop structure
+                    const itemTemplate = `
+                      <div style="display:flex;justify-content:space-between;margin:5px 0;font-size:12px">
+                        <span>${item.fruit.name}</span>
+                        <span>${item.quantity} ${item.fruit.unit}</span>
+                        <span>${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</span>
+                      </div>
+                    `;
+                    handlebarsItemsHtml += itemTemplate;
+                  }
                 });
 
                 // Calculate cash amount and change
@@ -1475,82 +1565,73 @@ export default function Home() {
                 ).toFixed(2);
                 const grandTotal = slip.total_amount + parseFloat(taxAmount);
 
-                // Replace template placeholders with actual data
+                // Universal placeholder processing - works for ALL templates
                 let templateHtml = selectedTemplate.template_html
-                  // Handlebars-style double curly braces (if template uses them)
-                  .replace(
-                    /\{\{logo\}\}/g,
-                    selectedTemplate.logo_data
-                      ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="max-width: 80px; height: auto;">`
-                      : ""
-                  )
-                  .replace(
-                    /\{\{store_name\}\}/g,
-                    selectedTemplate.store_name || selectedTemplate.name
-                  )
-                  .replace(
-                    /\{\{store_address\}\}/g,
-                    selectedTemplate.store_address ||
-                      "Fresh Produce & Quality Goods"
-                  )
-                  .replace(
-                    /\{\{store_phone\}\}/g,
-                    selectedTemplate.store_phone || "+1234567890"
-                  )
-                  .replace(
-                    /\{\{store_email\}\}/g,
-                    selectedTemplate.store_email || ""
-                  )
-                  .replace(
-                    /\{\{store_website\}\}/g,
-                    selectedTemplate.store_website || ""
-                  )
+                  // === CORE PLACEHOLDERS ===
+                  .replace(/\{\{logo\}\}/g, selectedTemplate.logo_data ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="max-width: 60px; height: auto;">` : "")
+                  .replace(/\{\{store_name\}\}/g, selectedTemplate.store_name || selectedTemplate.name)
+                  .replace(/\{\{store_address\}\}/g, selectedTemplate.store_address || "Fresh Produce & Quality Goods")
+                  .replace(/\{\{store_phone\}\}/g, selectedTemplate.store_phone || "+1234567890")
+                  .replace(/\{\{store_email\}\}/g, selectedTemplate.store_email || "")
+                  .replace(/\{\{store_website\}\}/g, selectedTemplate.store_website || "")
+                  
+                  // === TRANSACTION PLACEHOLDERS ===
                   .replace(/\{\{date\}\}/g, formattedDate)
+                  .replace(/\{\{time\}\}/g, new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' }))
                   .replace(/\{\{slip_number\}\}/g, slip.serial_number)
+                  
+                  // === ITEMS PLACEHOLDERS ===
                   .replace(/\{\{items\}\}/g, selectedTemplate.category === 'international' ? '' : handlebarsItemsHtml)
-                  .replace(
-                    /\{\{total\}\}/g,
-                    formatPrice(slip.total_amount, selectedTemplate.currency_symbol || 'Rs')
-                  )
-                  .replace(
-                    /\{\{grand_total\}\}/g,
-                    formatPrice(grandTotal, selectedTemplate.currency_symbol || 'Rs')
-                  )
-                  .replace(
-                    /\{\{tax_amount\}\}/g,
-                    formatPrice(parseFloat(taxAmount), selectedTemplate.currency_symbol || 'Rs')
-                  )
-                  .replace(
-                    /\{\{tax_rate\}\}/g,
-                    (selectedTemplate.tax_rate || 0).toString()
-                  )
-                  // Additional placeholders for international templates
+                  
+                  // === AMOUNT PLACEHOLDERS ===
+                  .replace(/\{\{total\}\}/g, formatPrice(slip.total_amount, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol))
+                  .replace(/\{\{grand_total\}\}/g, formatPrice(grandTotal, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol))
+                  .replace(/\{\{subtotal\}\}/g, formatPrice(slip.total_amount, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol))
+                  .replace(/\{\{gross_amount\}\}/g, slip.total_amount.toFixed(0))
+                  .replace(/\{\{net_total\}\}/g, slip.total_amount.toFixed(0))
+                  .replace(/\{\{total_amount\}\}/g, grandTotal.toFixed(0))
+                  
+                  // === TAX PLACEHOLDERS ===
+                  .replace(/\{\{tax_amount\}\}/g, formatPrice(parseFloat(taxAmount), selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol))
+                  .replace(/\{\{tax_rate\}\}/g, (selectedTemplate.tax_rate || 0).toString())
+                  
+                  // === PAYMENT PLACEHOLDERS ===
+                  .replace(/\{\{payment_amount\}\}/g, grandTotal.toFixed(0))
+                  .replace(/\{\{cash_amount\}\}/g, formatPrice(grandTotal + 3, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol))
+                  .replace(/\{\{change_amount\}\}/g, formatPrice(3, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol))
+                  .replace(/\{\{token_number\}\}/g, Math.floor(Math.random() * 1000).toString())
+                  
+                  // === STAFF PLACEHOLDERS ===
                   .replace(/\{\{cashier_name\}\}/g, "CASHIER")
-                  .replace(/\{\{time\}\}/g, new Date().toLocaleTimeString())
-                  .replace(/\{\{cash_amount\}\}/g, formatPrice(grandTotal + 3, selectedTemplate.currency_symbol || 'Rs'))
-                  .replace(/\{\{change_amount\}\}/g, formatPrice(3, selectedTemplate.currency_symbol || 'Rs'))
-                  .replace(/\{\{items_count\}\}/g, slip.items.length.toString())
-                  .replace(/\{\{total_quantity\}\}/g, slip.items.reduce((sum, item) => sum + item.quantity, 0).toString())
-                  .replace(/\{\{footer_text\}\}/g, selectedTemplate.footer_text || "Thank you for your business!")
-                  // Additional placeholders for Dubai template
                   .replace(/\{\{counter\}\}/g, "COUNTER-1")
+                  
+                  // === INTERNATIONAL PLACEHOLDERS ===
                   .replace(/\{\{trn\}\}/g, "100071695100003")
                   .replace(/\{\{invoice_number\}\}/g, "01888103")
-                  // Item-specific placeholders for hardcoded items
+                  
+                  // === CURRENCY PLACEHOLDERS ===
+                  .replace(/\{\{currency_symbol\}\}/g, selectedTemplate.currency_symbol || "Rs")
+                  
+                  // === FOOTER PLACEHOLDERS ===
+                  .replace(/\{\{footer_text\}\}/g, selectedTemplate.footer_text || "")
+                  
+                  // === STATISTICS PLACEHOLDERS ===
+                  .replace(/\{\{items_count\}\}/g, slip.items.length.toString())
+                  .replace(/\{\{total_quantity\}\}/g, slip.items.reduce((sum, item) => sum + item.quantity, 0).toString())
+                  
+                  // === HARDCODED ITEM PLACEHOLDERS ===
                   .replace(/\{\{item1_price\}\}/g, "4.50")
                   .replace(/\{\{item1_qty\}\}/g, "1")
                   .replace(/\{\{item1_total\}\}/g, "4.50")
                   .replace(/\{\{item2_price\}\}/g, "2.50")
                   .replace(/\{\{item2_qty\}\}/g, "1")
                   .replace(/\{\{item2_total\}\}/g, "2.50")
-                  .replace(
-                    /\{\{currency_symbol\}\}/g,
-                    selectedTemplate.currency_symbol || "Rs"
-                  )
-                  .replace(
-                    /\{\{footer_text\}\}/g,
-                    selectedTemplate.footer_text || ""
-                  )
+                  
+                  // === FUTURE PLACEHOLDERS ===
+                  .replace(/\{\{barcode\}\}/g, "123456789012")
+                  .replace(/\{\{qr_code\}\}/g, "QR_CODE_DATA")
+                  .replace(/\{\{loyalty_points\}\}/g, "150")
+                  .replace(/\{\{discount_amount\}\}/g, "0.00")
                   // Remove footer divs that contain only empty footer_text
                   .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, selectedTemplate.footer_text ? `<div>${selectedTemplate.footer_text}</div>` : "")
                   // Remove any remaining empty footer sections

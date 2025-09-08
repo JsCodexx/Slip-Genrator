@@ -24,7 +24,7 @@ INSERT INTO public.slip_formats (
 ) VALUES (
   'Starbucks Coffee - Receipt',
   'Starbucks coffee shop receipt with signature green styling and typical menu items',
-  '<div style="width:80mm;margin:auto;font-family:\'Courier New\',monospace;font-size:10px;color:#000;padding:4mm;line-height:1.2;background:#fff;">
+  '<div style="width:80mm;margin:auto;font-family:''Courier New'',monospace;font-size:10px;color:#000;padding:4mm;line-height:1.2;background:#fff;">
   
   <!-- Starbucks Header -->
   <div style="text-align:center;margin-bottom:6px;">
@@ -160,7 +160,7 @@ INSERT INTO public.slip_formats (
   8.50,
   '$',
   'Thank you for choosing Starbucks!\nHave a great day!',
-  'coffee'
+  'custom'
 );
 
 -- Verify the template was created
