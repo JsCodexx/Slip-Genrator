@@ -640,11 +640,11 @@ export default function Home() {
         if (selectedTemplate.template_html.includes('<tbody>')) {
           itemsHtml += `
             <tr>
-              <td style="width:8%;text-align:left;padding:4px 3px;vertical-align:top;">${index + 1}</td>
-              <td style="width:35%;text-align:left;padding:4px 3px;vertical-align:top;word-wrap:break-word;">${item.fruit.name}</td>
-              <td style="width:25%;text-align:left;padding:4px 3px;vertical-align:top;">${item.fruit.unit}</td>
-              <td style="width:12%;text-align:center;padding:4px 3px;vertical-align:top;">${item.quantity}</td>
-              <td style="width:20%;text-align:right;padding:4px 3px;vertical-align:top;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</td>
+              <td style="width:8%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${index + 1}</td>
+              <td style="width:35%;text-align:left;padding:4px 3px;vertical-align:top;word-wrap:break-word;font-weight:600;">${item.fruit.name}</td>
+              <td style="width:25%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${item.fruit.unit}</td>
+              <td style="width:12%;text-align:center;padding:4px 3px;vertical-align:top;font-weight:600;">${item.quantity}</td>
+              <td style="width:20%;text-align:right;padding:4px 3px;vertical-align:top;font-weight:600;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</td>
             </tr>
           `;
         } else {
@@ -1483,11 +1483,11 @@ export default function Home() {
                     // Table format for Sweet Creme template
                     itemsHtml += `
                       <tr>
-                        <td style="width:8%;text-align:left;padding:4px 3px;vertical-align:top;">${index + 1}</td>
-                        <td style="width:35%;text-align:left;padding:4px 3px;vertical-align:top;word-wrap:break-word;">${item.fruit.name}</td>
-                        <td style="width:25%;text-align:left;padding:4px 3px;vertical-align:top;">${item.fruit.unit}</td>
-                        <td style="width:12%;text-align:center;padding:4px 3px;vertical-align:top;">${item.quantity}</td>
-                        <td style="width:20%;text-align:right;padding:4px 3px;vertical-align:top;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</td>
+                        <td style="width:8%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${index + 1}</td>
+                        <td style="width:35%;text-align:left;padding:4px 3px;vertical-align:top;word-wrap:break-word;font-weight:600;">${item.fruit.name}</td>
+                        <td style="width:25%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${item.fruit.unit}</td>
+                        <td style="width:12%;text-align:center;padding:4px 3px;vertical-align:top;font-weight:600;">${item.quantity}</td>
+                        <td style="width:20%;text-align:right;padding:4px 3px;vertical-align:top;font-weight:600;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</td>
                       </tr>
                     `;
                     handlebarsItemsHtml = itemsHtml; // Same format for both
