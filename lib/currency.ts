@@ -86,8 +86,8 @@ export function formatPrice(amount: number, currency: string, showSymbol: boolea
       return Math.round(amount).toString();
     }
     
-    // For Indian Rupees and similar
-    return amount.toFixed(2);
+    // For Indian Rupees and similar - NO decimal points
+    return Math.round(amount).toString();
   }
 
   // For currencies that typically show 2 decimal places
@@ -100,8 +100,8 @@ export function formatPrice(amount: number, currency: string, showSymbol: boolea
     return `${currency}${Math.round(amount)}`;
   }
   
-  // For Indian Rupees and similar
-  return `${currency} ${amount.toFixed(2)}`;
+  // For Indian Rupees and similar - NO decimal points
+  return `${currency} ${Math.round(amount)}`;
 }
 
 /**
@@ -253,6 +253,44 @@ export function getCurrencyInfo(currency: string): {
 }
 
 // =====================================================
+// SWEET CREME SPECIFIC FUNCTIONS
+// =====================================================
+
+/**
+ * Determines the correct unit for Sweet Creme items based on fruit name
+ * @param fruitName - Name of the fruit/item
+ * @returns Unit string (kg for shakes, L for juices)
+ */
+export function getSweetCremeUnit(fruitName: string): string {
+  const name = fruitName.toLowerCase();
+  
+  // Check for shake keywords
+  if (name.includes('shake') || name.includes('milkshake')) {
+    return 'kg';
+  }
+  
+  // Check for juice keywords
+  if (name.includes('juice')) {
+    return 'L';
+  }
+  
+  // Default to kg for other items
+  return 'kg';
+}
+
+/**
+ * Formats the rate column for Sweet Creme template
+ * @param price - The price amount
+ * @param fruitName - Name of the fruit/item
+ * @returns Formatted rate string like "350(kg)" or "350(L)"
+ */
+export function formatSweetCremeRate(price: number, fruitName: string): string {
+  const unit = getSweetCremeUnit(fruitName);
+  const roundedPrice = Math.round(price);
+  return `${roundedPrice}(${unit})`;
+}
+
+// =====================================================
 // EXPORT ALL FUNCTIONS
 // =====================================================
 
@@ -265,5 +303,7 @@ export default {
   getAvailableCurrencies,
   getConversionRate,
   isSupportedCurrency,
-  getCurrencyInfo
+  getCurrencyInfo,
+  getSweetCremeUnit,
+  formatSweetCremeRate
 };

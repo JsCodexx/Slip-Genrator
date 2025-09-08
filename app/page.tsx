@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import Navigation from "@/components/Navigation";
-import { getProductPriceDisplay, convertCurrency, formatPrice } from "@/lib/currency";
+import { getProductPriceDisplay, convertCurrency, formatPrice, getSweetCremeUnit, formatSweetCremeRate } from "@/lib/currency";
 
 interface SlipFormat {
   id: string;
@@ -642,7 +642,7 @@ export default function Home() {
             <tr>
               <td style="width:8%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${index + 1}</td>
               <td style="width:35%;text-align:left;padding:4px 3px;vertical-align:top;word-wrap:break-word;font-weight:600;">${item.fruit.name}</td>
-              <td style="width:25%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${item.fruit.unit}</td>
+              <td style="width:25%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${formatSweetCremeRate(item.fruit.base_price, item.fruit.name)}</td>
               <td style="width:12%;text-align:center;padding:4px 3px;vertical-align:top;font-weight:600;">${item.quantity}</td>
               <td style="width:20%;text-align:right;padding:4px 3px;vertical-align:top;font-weight:600;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</td>
             </tr>
@@ -1485,7 +1485,7 @@ export default function Home() {
                       <tr>
                         <td style="width:8%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${index + 1}</td>
                         <td style="width:35%;text-align:left;padding:4px 3px;vertical-align:top;word-wrap:break-word;font-weight:600;">${item.fruit.name}</td>
-                        <td style="width:25%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${item.fruit.unit}</td>
+                        <td style="width:25%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${formatSweetCremeRate(item.fruit.base_price, item.fruit.name)}</td>
                         <td style="width:12%;text-align:center;padding:4px 3px;vertical-align:top;font-weight:600;">${item.quantity}</td>
                         <td style="width:20%;text-align:right;padding:4px 3px;vertical-align:top;font-weight:600;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</td>
                       </tr>
