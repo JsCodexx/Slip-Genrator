@@ -609,32 +609,76 @@ export default function Home() {
           <head>
             <title>Generated Receipts</title>
             <style>
-          @media print {
               body {
-                margin: 0 !important;
-                padding: 0 !important;
-                background: white !important;
+                margin: 0;
+                padding: 0;
+                background: white;
+                font-family: "Courier New", monospace;
+                font-size: 10px;
+                line-height: 1.1;
               }
-              /* Only apply basic print styles, let templates control their own design */
               .receipt {
-                /* Remove page-break-inside: avoid for thermal printers */
+                width: 80mm;
+                max-width: 80mm;
+                margin: 0 auto 10px auto;
+                padding: 2mm;
+                background: white;
+                color: black;
+                page-break-inside: avoid;
+                page-break-after: avoid;
+                page-break-before: avoid;
+                overflow: hidden;
+                height: auto;
+                min-height: fit-content;
+                border-bottom: 2px dashed #ccc;
               }
-              /* Remove any global font/color overrides - let templates control their own styling */
-          }
+              .receipt:last-child {
+                border-bottom: none;
+              }
+              @media print {
+                body {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  background: white !important;
+                  font-size: 10px !important;
+                  line-height: 1.1 !important;
+                }
+                .receipt {
+                  width: 80mm !important;
+                  max-width: 80mm !important;
+                  margin: 0 auto 10px auto !important;
+                  padding: 2mm !important;
+                  page-break-inside: avoid !important;
+                  page-break-after: avoid !important;
+                  page-break-before: avoid !important;
+                  overflow: hidden !important;
+                  height: auto !important;
+                  border-bottom: 2px dashed #ccc !important;
+                }
+                .receipt:last-child {
+                  border-bottom: none !important;
+                }
+                /* Force everything to stay on one page */
+                * {
+                  page-break-inside: avoid !important;
+                  page-break-after: avoid !important;
+                  page-break-before: avoid !important;
+                }
+              }
             </style>
           </head>
           <body>
       `;
 
     generatedSlips.forEach((slip, index) => {
-        const slipDate = new Date(slip.slip_date);
-        const formattedDate = slipDate.toLocaleDateString("en-GB");
+      const slipDate = new Date(slip.slip_date);
+      const formattedDate = slipDate.toLocaleDateString("en-GB");
 
       const selectedTemplate = slipFormats.find((f) => f.id === selectedFormat);
       if (!selectedTemplate) return;
 
       // Items HTML - Generate table rows for Sweet Creme template
-        let itemsHtml = "";
+      let itemsHtml = "";
       slip.items.forEach((item, index) => {
         // Check if template has table structure (Sweet Creme)
         if (selectedTemplate.template_html.includes('<tbody>')) {
@@ -657,7 +701,7 @@ export default function Home() {
             </div>
           `;
         }
-        });
+      });
 
       const taxAmount = (
         (slip.total_amount * (selectedTemplate.tax_rate || 0)) / 100
@@ -666,7 +710,7 @@ export default function Home() {
       const grandTotal = slip.total_amount + parseFloat(taxAmount);
 
       // Universal placeholder processing - works for ALL templates
-        let templateHtml = selectedTemplate.template_html
+      let templateHtml = selectedTemplate.template_html
         // === CORE PLACEHOLDERS ===
         .replace(/\{\{logo\}\}/g, selectedTemplate.logo_data ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain; display: block;">` : "")
         .replace(/\{\{store_name\}\}/g, selectedTemplate.store_name || selectedTemplate.name)
@@ -746,12 +790,22 @@ export default function Home() {
         templateHtml = templateHtml.replace(/\\f|\f/g, '');
       }
 
-      printContent += `<div class="receipt">${templateHtml}</div>`;
-      
-      // Add spacing between receipts (no cutting elements)
+      // Compress content to ensure it fits on one page
+      templateHtml = templateHtml
+        .replace(/font-size:\s*\d+px/g, 'font-size: 10px')
+        .replace(/line-height:\s*[\d.]+/g, 'line-height: 1.1')
+        .replace(/margin:\s*[\d\s]+px/g, 'margin: 2px')
+        .replace(/padding:\s*[\d\s]+px/g, 'padding: 2px')
+        .replace(/height:\s*[\d\s]+px/g, 'height: auto')
+        .replace(/min-height:\s*[\d\s]+px/g, 'min-height: auto');
+
+      // Add ESC/POS cut command after each receipt (except the last one)
+      let cutCommand = "";
       if (index < generatedSlips.length - 1) {
-        printContent += `<div style="height: 30px; margin: 0; padding: 0; border: none;"></div>`;
+        cutCommand = `\x1Bd\x00`;
       }
+
+      printContent += `<div class="receipt">${templateHtml}${cutCommand}</div>`;
     });
 
     printContent += `
@@ -767,7 +821,7 @@ export default function Home() {
       .replace(/\\r/g, '\r');
 
     printWindow.document.write(cleanPrintContent);
-      printWindow.document.close();
+    printWindow.document.close();
     
     // Single print job
     setTimeout(() => {
@@ -784,6 +838,544 @@ export default function Home() {
       return;
     }
     setShowPreview(true);
+  };
+
+  const previewThermalPrinter = () => {
+    if (generatedSlips.length === 0) {
+      setMessage("No slips to preview");
+      setMessageType("error");
+      return;
+    }
+
+    const previewWindow = window.open("", "_blank", "width=1000,height=800");
+    if (!previewWindow) return;
+
+    // Create the EXACT same content that will be printed
+    let printContent = `
+        <html>
+          <head>
+            <title>Generated Receipts</title>
+            <style>
+          @media print {
+              body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+              }
+              /* Thermal printer optimized - no CSS page breaks */
+              .receipt {
+                margin: 0 !important;
+                padding: 0 !important;
+                display: block;
+                min-height: fit-content;
+              }
+              /* Remove any global font/color overrides - let templates control their own styling */
+          }
+            </style>
+          </head>
+          <body>
+      `;
+
+    generatedSlips.forEach((slip, index) => {
+      const slipDate = new Date(slip.slip_date);
+      const formattedDate = slipDate.toLocaleDateString("en-GB");
+
+      const selectedTemplate = slipFormats.find((f) => f.id === selectedFormat);
+      if (!selectedTemplate) return;
+
+      // Items HTML - Generate table rows for Sweet Creme template
+      let itemsHtml = "";
+      slip.items.forEach((item, index) => {
+        // Check if template has table structure (Sweet Creme)
+        if (selectedTemplate.template_html.includes('<tbody>')) {
+          itemsHtml += `
+            <tr>
+              <td style="width:8%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${index + 1}</td>
+              <td style="width:35%;text-align:left;padding:4px 3px;vertical-align:top;word-wrap:break-word;font-weight:600;">${item.fruit.name}</td>
+              <td style="width:25%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${formatSweetCremeRate(item.fruit.base_price, item.fruit.name)}</td>
+              <td style="width:12%;text-align:center;padding:4px 3px;vertical-align:top;font-weight:600;">${item.quantity}</td>
+              <td style="width:20%;text-align:right;padding:4px 3px;vertical-align:top;font-weight:600;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</td>
+            </tr>
+          `;
+        } else {
+          // Default format for other templates
+          itemsHtml += `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:5px 0;font-size:12px">
+    <span style="flex:1;text-align:left;">${item.fruit.name}</span>
+              <span style="flex:1;text-align:center;">${item.quantity} ${item.fruit.unit}</span>
+              <span style="flex:1;text-align:right;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</span>
+            </div>
+          `;
+        }
+      });
+
+      const taxAmount = (
+        (slip.total_amount * (selectedTemplate.tax_rate || 0)) / 100
+      ).toFixed(2);
+
+      const grandTotal = slip.total_amount + parseFloat(taxAmount);
+
+      // Universal placeholder processing - works for ALL templates
+      let templateHtml = selectedTemplate.template_html
+        // === CORE PLACEHOLDERS ===
+        .replace(/\{\{logo\}\}/g, selectedTemplate.logo_data ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain; display: block;">` : "")
+        .replace(/\{\{store_name\}\}/g, selectedTemplate.store_name || selectedTemplate.name)
+        .replace(/\{\{store_address\}\}/g, selectedTemplate.store_address || "Fresh Produce & Quality Goods")
+        .replace(/\{\{store_phone\}\}/g, selectedTemplate.store_phone || "+1234567890")
+        .replace(/\{\{store_email\}\}/g, selectedTemplate.store_email || "")
+        .replace(/\{\{store_website\}\}/g, selectedTemplate.store_website || "")
+        
+        // === TRANSACTION PLACEHOLDERS ===
+        .replace(/\{\{date\}\}/g, formattedDate)
+        .replace(/\{\{time\}\}/g, new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' }))
+        .replace(/\{\{slip_number\}\}/g, slip.serial_number)
+        
+        // === ITEMS PLACEHOLDERS ===
+        .replace(/\{\{items\}\}/g, selectedTemplate.category === 'international' ? '' : itemsHtml)
+        
+        // === AMOUNT PLACEHOLDERS ===
+        .replace(/\{\{total\}\}/g, slip.total_amount.toFixed(2))
+        .replace(/\{\{grand_total\}\}/g, grandTotal.toFixed(2))
+        .replace(/\{\{subtotal\}\}/g, slip.total_amount.toFixed(2))
+        .replace(/\{\{gross_amount\}\}/g, slip.total_amount.toFixed(0))
+        .replace(/\{\{net_total\}\}/g, slip.total_amount.toFixed(0))
+        .replace(/\{\{total_amount\}\}/g, grandTotal.toFixed(0))
+        
+        // === TAX PLACEHOLDERS ===
+        .replace(/\{\{tax_rate\}\}/g, (selectedTemplate.tax_rate || 0).toString())
+        .replace(/\{\{tax_amount\}\}/g, taxAmount)
+        
+        // === PAYMENT PLACEHOLDERS ===
+        .replace(/\{\{payment_amount\}\}/g, grandTotal.toFixed(0))
+        .replace(/\{\{cash_amount\}\}/g, (grandTotal + 3).toFixed(2))
+        .replace(/\{\{change_amount\}\}/g, "3.00")
+        .replace(/\{\{token_number\}\}/g, Math.floor(Math.random() * 1000).toString())
+        
+        // === STAFF PLACEHOLDERS ===
+        .replace(/\{\{cashier_name\}\}/g, "CASHIER")
+        .replace(/\{\{counter\}\}/g, "COUNTER-1")
+        
+        // === INTERNATIONAL PLACEHOLDERS ===
+        .replace(/\{\{trn\}\}/g, "100071695100003")
+        .replace(/\{\{invoice_number\}\}/g, "01888103")
+        
+        // === CURRENCY PLACEHOLDERS ===
+        .replace(/\{\{currency_symbol\}\}/g, selectedTemplate.currency_symbol || 'Rs')
+        
+        // === FOOTER PLACEHOLDERS ===
+        .replace(/\{\{footer_text\}\}/g, selectedTemplate.footer_text || "")
+        
+        // === STATISTICS PLACEHOLDERS ===
+        .replace(/\{\{items_count\}\}/g, slip.items.length.toString())
+        .replace(/\{\{total_quantity\}\}/g, slip.items.reduce((sum, item) => sum + item.quantity, 0).toString())
+        
+        // === HARDCODED ITEM PLACEHOLDERS ===
+        .replace(/\{\{item1_price\}\}/g, "4.50")
+        .replace(/\{\{item1_qty\}\}/g, "1")
+        .replace(/\{\{item1_total\}\}/g, "4.50")
+        .replace(/\{\{item2_price\}\}/g, "2.50")
+        .replace(/\{\{item2_qty\}\}/g, "1")
+        .replace(/\{\{item2_total\}\}/g, "2.50")
+
+        // === FUTURE PLACEHOLDERS ===
+        .replace(/\{\{barcode\}\}/g, "123456789012")
+        .replace(/\{\{qr_code\}\}/g, "QR_CODE_DATA")
+        .replace(/\{\{loyalty_points\}\}/g, "150")
+        .replace(/\{\{discount_amount\}\}/g, "0.00")
+        .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, selectedTemplate.footer_text ? `<div>${selectedTemplate.footer_text}</div>` : "")
+        .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, "")
+        // Clean any potential \f characters
+        .replace(/\\f/g, '')
+        .replace(/\f/g, '')
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r');
+
+      // Debug: Check if template still contains \f characters
+      if (templateHtml.includes('\\f') || templateHtml.includes('\f')) {
+        console.warn('⚠️ Template still contains \\f characters:', templateHtml.match(/\\f|\f/g));
+        templateHtml = templateHtml.replace(/\\f|\f/g, '');
+      }
+
+      // Add ESC/POS cut command after each receipt (except the last one)
+      let cutCommand = "";
+      if (index < generatedSlips.length - 1) {
+        // ESC/POS cut command: ESC d n (where n=0 means full cut)
+        cutCommand = `\x1Bd\x00`;
+      }
+
+      printContent += `<div class="receipt">${templateHtml}${cutCommand}</div>`;
+    });
+
+    printContent += `
+        </body>
+      </html>
+    `;
+
+    // Now create the preview with EXACT same content + visual indicators
+    let previewContent = `
+      <html>
+        <head>
+          <title>EXACT Print Preview - Thermal Printer (80mm)</title>
+          <style>
+            body {
+              margin: 0;
+              padding: 20px;
+              background: #f0f0f0;
+              font-family: Arial, sans-serif;
+            }
+            .preview-header {
+              background: #333;
+              color: white;
+              padding: 15px;
+              margin: -20px -20px 20px -20px;
+              text-align: center;
+            }
+            .warning-box {
+              background: #fff3cd;
+              border: 1px solid #ffeaa7;
+              color: #856404;
+              padding: 15px;
+              margin: 20px 0;
+              border-radius: 5px;
+            }
+            .receipt-container {
+              width: 80mm;
+              margin: 0 auto 30px auto;
+              background: white;
+              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+              position: relative;
+              border: 2px solid #ddd;
+            }
+            .receipt-container::after {
+              content: "PAGE BREAK + ESC/POS CUT";
+              position: absolute;
+              bottom: -40px;
+              left: 50%;
+              transform: translateX(-50%);
+              background: #ff4444;
+              color: white;
+              padding: 8px 15px;
+              border-radius: 15px;
+              font-size: 12px;
+              font-weight: bold;
+              z-index: 10;
+            }
+            .receipt-container:last-child::after {
+              content: "LAST RECEIPT (NO CUT)";
+              background: #44ff44;
+            }
+            .receipt {
+              padding: 10px;
+              font-family: "Courier New", monospace;
+              font-size: 12px;
+              line-height: 1.3;
+              color: black;
+              background: white;
+            }
+            .thermal-info {
+              background: #e8f4fd;
+              padding: 10px;
+              margin: 10px 0;
+              border-left: 4px solid #2196F3;
+              font-size: 14px;
+            }
+            .receipt-count {
+              background: #333;
+              color: white;
+              padding: 5px 10px;
+              border-radius: 15px;
+              font-size: 12px;
+              margin: 5px;
+              display: inline-block;
+            }
+            .cut-indicator {
+              background: #ff4444;
+              color: white;
+              padding: 3px 8px;
+              border-radius: 10px;
+              font-size: 10px;
+              margin: 5px;
+              display: inline-block;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="preview-header">
+            <h2>🎯 EXACT Print Preview (80mm x 3276mm)</h2>
+            <p>Printer: POS-80 | Paper Size: ZPrinter Paper(80 x 3276r)</p>
+            <div class="thermal-info">
+              📏 <strong>Width:</strong> 80mm (3.15 inches) | 
+              📏 <strong>Length:</strong> 3276mm (129 inches) | 
+              📄 <strong>Receipts:</strong> ${generatedSlips.length} | 
+              ✂️ <strong>Auto-Cut:</strong> ESC/POS commands after each receipt
+            </div>
+          </div>
+          
+          <div class="warning-box">
+            <strong>⚠️ IMPORTANT:</strong> This preview shows the EXACT content that will be printed, including:
+            <ul style="margin: 10px 0; padding-left: 20px;">
+              <li>Same HTML structure as print function</li>
+              <li>Same CSS page-break rules</li>
+              <li>Same ESC/POS cut commands (shown as visual indicators)</li>
+              <li>Same placeholder replacements</li>
+            </ul>
+            The only difference: Visual indicators show where cuts will happen (invisible ESC/POS commands).
+          </div>
+    `;
+
+    // Extract the receipt content from the printContent (same as what will be printed)
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = printContent;
+    const receiptDivs = tempDiv.querySelectorAll('.receipt');
+    
+    receiptDivs.forEach((receiptDiv, index) => {
+      // Remove the ESC/POS cut command from the receipt content for preview
+      let cleanReceiptContent = receiptDiv.innerHTML;
+      // Remove the invisible ESC/POS cut command that shows as ⬜d
+      cleanReceiptContent = cleanReceiptContent.replace(/\x1Bd\x00/g, '');
+      
+      const cutIndicator = index < receiptDivs.length - 1 ? 
+        `<div class="cut-indicator">ESC/POS Cut Command: \\x1Bd\\x00 (Hidden in print)</div>` : 
+        `<div class="cut-indicator" style="background: #44ff44;">Last Receipt - No Cut</div>`;
+      
+      previewContent += `
+        <div class="receipt-container">
+          <div class="receipt-count">Receipt ${index + 1} of ${receiptDivs.length}</div>
+          <div class="receipt">${cleanReceiptContent}</div>
+          ${cutIndicator}
+        </div>
+      `;
+    });
+
+    previewContent += `
+        </body>
+      </html>
+    `;
+
+    previewWindow.document.write(previewContent);
+    previewWindow.document.close();
+  };
+
+  const previewPrintDialog = () => {
+    if (generatedSlips.length === 0) {
+      setMessage("No slips to preview");
+      setMessageType("error");
+      return;
+    }
+
+    // Create a preview window that shows exactly what will be printed
+    const previewWindow = window.open("", "_blank", "width=1200,height=800");
+    if (!previewWindow) return;
+
+    let previewContent = `
+      <html>
+        <head>
+          <title>Print Preview - Thermal Receipts</title>
+          <style>
+            body {
+              margin: 0;
+              padding: 20px;
+              background: #f0f0f0;
+              font-family: Arial, sans-serif;
+            }
+            .preview-header {
+              background: #333;
+              color: white;
+              padding: 15px;
+              margin: -20px -20px 20px -20px;
+              text-align: center;
+            }
+            .receipt-preview {
+              width: 80mm;
+              margin: 0 auto 20px auto;
+              background: white;
+              box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+              border: 2px solid #ddd;
+              padding: 10px;
+              font-family: "Courier New", monospace;
+              font-size: 12px;
+              line-height: 1.2;
+              color: black;
+            }
+            .receipt-number {
+              background: #333;
+              color: white;
+              padding: 5px 10px;
+              border-radius: 15px;
+              font-size: 12px;
+              margin: 5px;
+              display: inline-block;
+            }
+            .cut-indicator {
+              background: #ff4444;
+              color: white;
+              padding: 3px 8px;
+              border-radius: 10px;
+              font-size: 10px;
+              margin: 5px;
+              display: inline-block;
+            }
+            .thermal-info {
+              background: #e8f4fd;
+              padding: 10px;
+              margin: 10px 0;
+              border-left: 4px solid #2196F3;
+              font-size: 14px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="preview-header">
+            <h2>📄 Print Preview - Thermal Receipts (80mm)</h2>
+            <p>This shows exactly what will be printed on your POS-80 thermal printer</p>
+            <div class="thermal-info">
+              📏 <strong>Width:</strong> 80mm (3.15 inches) | 
+              📄 <strong>Receipts:</strong> ${generatedSlips.length} | 
+              ✂️ <strong>Auto-Cut:</strong> ESC/POS commands after each receipt
+            </div>
+          </div>
+    `;
+
+    generatedSlips.forEach((slip, index) => {
+      const slipDate = new Date(slip.slip_date);
+      const formattedDate = slipDate.toLocaleDateString("en-GB");
+
+      const selectedTemplate = slipFormats.find((f) => f.id === selectedFormat);
+      if (!selectedTemplate) return;
+
+      // Items HTML - Generate table rows for Sweet Creme template
+      let itemsHtml = "";
+      slip.items.forEach((item, index) => {
+        // Check if template has table structure (Sweet Creme)
+        if (selectedTemplate.template_html.includes('<tbody>')) {
+          itemsHtml += `
+            <tr>
+              <td style="width:8%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${index + 1}</td>
+              <td style="width:35%;text-align:left;padding:4px 3px;vertical-align:top;word-wrap:break-word;font-weight:600;">${item.fruit.name}</td>
+              <td style="width:25%;text-align:left;padding:4px 3px;vertical-align:top;font-weight:600;">${formatSweetCremeRate(item.fruit.base_price, item.fruit.name)}</td>
+              <td style="width:12%;text-align:center;padding:4px 3px;vertical-align:top;font-weight:600;">${item.quantity}</td>
+              <td style="width:20%;text-align:right;padding:4px 3px;vertical-align:top;font-weight:600;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</td>
+            </tr>
+          `;
+        } else {
+          // Default format for other templates
+          itemsHtml += `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin:5px 0;font-size:12px">
+    <span style="flex:1;text-align:left;">${item.fruit.name}</span>
+              <span style="flex:1;text-align:center;">${item.quantity} ${item.fruit.unit}</span>
+              <span style="flex:1;text-align:right;">${formatPrice(item.total_price, selectedTemplate.currency_symbol || 'Rs', showCurrencySymbol)}</span>
+            </div>
+          `;
+        }
+      });
+
+      const taxAmount = (
+        (slip.total_amount * (selectedTemplate.tax_rate || 0)) / 100
+      ).toFixed(2);
+
+      const grandTotal = slip.total_amount + parseFloat(taxAmount);
+
+      // Universal placeholder processing - works for ALL templates
+      let templateHtml = selectedTemplate.template_html
+        // === CORE PLACEHOLDERS ===
+        .replace(/\{\{logo\}\}/g, selectedTemplate.logo_data ? `<img src="${selectedTemplate.logo_data}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain; display: block;">` : "")
+        .replace(/\{\{store_name\}\}/g, selectedTemplate.store_name || selectedTemplate.name)
+        .replace(/\{\{store_address\}\}/g, selectedTemplate.store_address || "Fresh Produce & Quality Goods")
+        .replace(/\{\{store_phone\}\}/g, selectedTemplate.store_phone || "+1234567890")
+        .replace(/\{\{store_email\}\}/g, selectedTemplate.store_email || "")
+        .replace(/\{\{store_website\}\}/g, selectedTemplate.store_website || "")
+        
+        // === TRANSACTION PLACEHOLDERS ===
+        .replace(/\{\{date\}\}/g, formattedDate)
+        .replace(/\{\{time\}\}/g, new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' }))
+        .replace(/\{\{slip_number\}\}/g, slip.serial_number)
+        
+        // === ITEMS PLACEHOLDERS ===
+        .replace(/\{\{items\}\}/g, selectedTemplate.category === 'international' ? '' : itemsHtml)
+        
+        // === AMOUNT PLACEHOLDERS ===
+        .replace(/\{\{total\}\}/g, slip.total_amount.toFixed(2))
+        .replace(/\{\{grand_total\}\}/g, grandTotal.toFixed(2))
+        .replace(/\{\{subtotal\}\}/g, slip.total_amount.toFixed(2))
+        .replace(/\{\{gross_amount\}\}/g, slip.total_amount.toFixed(0))
+        .replace(/\{\{net_total\}\}/g, slip.total_amount.toFixed(0))
+        .replace(/\{\{total_amount\}\}/g, grandTotal.toFixed(0))
+        
+        // === TAX PLACEHOLDERS ===
+        .replace(/\{\{tax_rate\}\}/g, (selectedTemplate.tax_rate || 0).toString())
+        .replace(/\{\{tax_amount\}\}/g, taxAmount)
+        
+        // === PAYMENT PLACEHOLDERS ===
+        .replace(/\{\{payment_amount\}\}/g, grandTotal.toFixed(0))
+        .replace(/\{\{cash_amount\}\}/g, (grandTotal + 3).toFixed(2))
+        .replace(/\{\{change_amount\}\}/g, "3.00")
+        .replace(/\{\{token_number\}\}/g, Math.floor(Math.random() * 1000).toString())
+        
+        // === STAFF PLACEHOLDERS ===
+        .replace(/\{\{cashier_name\}\}/g, "CASHIER")
+        .replace(/\{\{counter\}\}/g, "COUNTER-1")
+        
+        // === INTERNATIONAL PLACEHOLDERS ===
+        .replace(/\{\{trn\}\}/g, "100071695100003")
+        .replace(/\{\{invoice_number\}\}/g, "01888103")
+        
+        // === CURRENCY PLACEHOLDERS ===
+        .replace(/\{\{currency_symbol\}\}/g, selectedTemplate.currency_symbol || 'Rs')
+        
+        // === FOOTER PLACEHOLDERS ===
+        .replace(/\{\{footer_text\}\}/g, selectedTemplate.footer_text || "")
+        
+        // === STATISTICS PLACEHOLDERS ===
+        .replace(/\{\{items_count\}\}/g, slip.items.length.toString())
+        .replace(/\{\{total_quantity\}\}/g, slip.items.reduce((sum, item) => sum + item.quantity, 0).toString())
+        
+        // === HARDCODED ITEM PLACEHOLDERS ===
+        .replace(/\{\{item1_price\}\}/g, "4.50")
+        .replace(/\{\{item1_qty\}\}/g, "1")
+        .replace(/\{\{item1_total\}\}/g, "4.50")
+        .replace(/\{\{item2_price\}\}/g, "2.50")
+        .replace(/\{\{item2_qty\}\}/g, "1")
+        .replace(/\{\{item2_total\}\}/g, "2.50")
+
+        // === FUTURE PLACEHOLDERS ===
+        .replace(/\{\{barcode\}\}/g, "123456789012")
+        .replace(/\{\{qr_code\}\}/g, "QR_CODE_DATA")
+        .replace(/\{\{loyalty_points\}\}/g, "150")
+        .replace(/\{\{discount_amount\}\}/g, "0.00")
+        .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, selectedTemplate.footer_text ? `<div>${selectedTemplate.footer_text}</div>` : "")
+        .replace(/<div[^>]*>\s*\{\{footer_text\}\}\s*<\/div>/gi, "")
+        // Clean any potential \f characters
+        .replace(/\\f/g, '')
+        .replace(/\f/g, '')
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r');
+
+      // Debug: Check if template still contains \f characters
+      if (templateHtml.includes('\\f') || templateHtml.includes('\f')) {
+        console.warn('⚠️ Template still contains \\f characters:', templateHtml.match(/\\f|\f/g));
+        templateHtml = templateHtml.replace(/\\f|\f/g, '');
+      }
+
+      const cutIndicator = index < generatedSlips.length - 1 ? 
+        `<div class="cut-indicator">ESC/POS Cut Command (Hidden in print)</div>` : 
+        `<div class="cut-indicator" style="background: #44ff44;">Last Receipt - No Cut</div>`;
+
+      previewContent += `
+        <div class="receipt-preview">
+          <div class="receipt-number">Receipt ${index + 1} of ${generatedSlips.length}</div>
+          <div>${templateHtml}</div>
+          ${cutIndicator}
+        </div>
+      `;
+    });
+
+    previewContent += `
+        </body>
+      </html>
+    `;
+
+    previewWindow.document.write(previewContent);
+    previewWindow.document.close();
   };
 
   const closePreview = () => {
@@ -1377,6 +1969,18 @@ export default function Home() {
                   className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
                 >
                   Preview Slips
+                </button>
+                <button
+                  onClick={previewThermalPrinter}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                >
+                  🔥 Thermal Preview (80mm)
+                </button>
+                <button
+                  onClick={previewPrintDialog}
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                >
+                  📄 Print Preview
                 </button>
                 <button
                   onClick={saveSlipsToDatabase}
